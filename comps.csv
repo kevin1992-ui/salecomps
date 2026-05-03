@@ -1,0 +1,95 @@
+id,name,address,submarket,sale_date,class,units,year_built,sf,avg_sf,sale_price,cap_rate,ppu,psf,buyer,seller,notes,lat,lng
+1,Esperanza at Duarte Station,"Esperanza at Duarte Station, Duarte",Duarte,2026-02-27,,344,2023,269083,782,141000000,4.75,409883,524.0,Holland Partners with Invesco/State of Florida,MBK Real Estate/Haseko,,34.1391,-117.9709
+2,C on Pico,"1242 W Pico Blvd, Los Angeles",Los Angeles,2026-01-21,,94,2014,,,38000000,,404255,,JRK Property Holdings,,,34.0423629,-118.2720341
+3,mResidences Miracle Mile,"6675 W Olympic Blvd, Los Angeles",Los Angeles,2026-01-08,,60,2008,77220,1287,30150000,,502500,390.44,Alliance Residential,,,34.0594481,-118.3741802
+4,Stella,13488 Maxella Ave,Marina del Rey,2025-10-01,,244,2013,236785,970,141000000,4.66,577868,595.48,Carmel Partners,Nuveen,"Value add play.
+
+Nuveen bought in 2013 for $167.3M ($686k/unit)",33.9855623,-118.4422136
+5,Santal Thousand Oaks,299 Thousand Oaks Blvd,Thousand Oaks,2025-10-01,,142,2023,125243,813,83000000,5.0,584507,662.71,BlackRock,Latigo Group,"Includes 9,821SF of retail.",34.1706,-118.8376
+6,Avila,75 W Walnut St,Pasadena,2025-07-24,,201,2017,175838,874,115000000,4.45,572139,654.01,Acacia,Greystar,,34.1502298,-118.1521692
+7,The,5550 5550 Hollywood Blvd,Hollywood,2025-06-01,,280,2018,206920,739,98400000,5.0,351428,475.55,Grubb/PCCP,Vanbarton Group,Assumable dent of 4.37% I/O through Nov 2027,34.1013517,-118.3105011
+8,Modera Glendale,600 N Central Ave,Glendale,2025-04-23,A,235,2015,187073,796,126000000,4.54,536170,673.53,Sobrato,Rockwood,,34.1553024,-118.2576688
+9,the BW,1168 South Barrington Avenue,Brentwood,2025-04-07,A,78,2013,77142,989,58100000,4.75,744871,753.16,Famh Group,California Landmark Group,"Includes 2,300sf of retail.",34.0500356,-118.4612607
+10,Vinz on Fairfax,950 S Fairfax Ave,Los Angeles,2025-01-31,A,144,2018,124581,837,68421500,5.1,475149,549.21,Seminole Real Estate Fund,Alliance Residential,,34.0593636,-118.3631246
+11,The Gabriel,2771 N Garey Ave,Pomona,2025-01-29,A,312,2021,275496,883,115000000,5.56,368589,417.43,Prime Residential,Greystar,,34.0955493,-117.748678
+12,Desmond on Wilshire,5520 Wilshire Blvd,Los Angeles,2025-01-29,A,175,2016,144725,827,88000000,4.9,502857,608.05,Carmel Partners,Greystar,,34.0621793,-118.3485937
+13,Alta Ink,5750 Hollywood Blvd,Hollywood,2025-01-01,A,161,2021,136450,847,55000000,2.95,341614,403.08,Lighthouse Group,Wood Partners,,34.1013494,-118.3153453
+14,La Belle,6138 Franklin Ave,Hollywood,2024-12-20,A,146,2010,119063,815,52150000,4.7,357191,438.0,JSP,LaSalle,,34.1051602,-118.3233787
+15,Estelle,1333 S Orange Grove A,Los Angeles,2024-11-01,A,61,2020,90021,1475,41500000,4.6,680327,461.0,Brasa/Canfield,Green Cities,,34.052545,-118.3652416
+16,The Gabriel,2771 North Garey Avenue,Pomona,2024-10-01,A,312,2022,275496,883,115000000,5.25,368589,417.43,Prime Residential,Greystar,"Property was just finishing lease up. T12 included heavy vacancy, concessions, opex, etc. Buyer closed at stabilization.",34.0955493,-117.748678
+17,The Lofts at NoHo Commons,"11136 Chandler Blvd, North Hollywood",North Hollywood,2024-10-17,A,292,2006,,,92500000,,316780,,GPI Companies,,"The Lofts at Noho recently went under a $9 million renovation. This includes upgrades to EV charging spots, extensive murals, new signage, landscape, hardscape, and updating 85 percent of the interior market rate units.  The unit mix includes 251 studios and 41 one-bedroom units. Of the total unit count, 28 have been set aside as affordable. Nine units are available to households earning at or below 110 percent of the area median income (AMI), 14 are available at 60 percent of AMI, and five are available at 50 percent of AMI.",34.168015,-118.3730152
+18,Canvas LA,138 N Beaudry Ave,DTLA/Echo Park,2024-09-03,A,210,2008,178367,849,61500000,5.4,292857,344.79,Advance Real Estate,Magnolia Capital/Goldman Sachs,Previously sold in 2018 for $88.3M. Podium construction. 100% market rate,34.0598783,-118.2536247
+19,The Highlands,25909 Rolling Hills Rd,Torrance,2024-08-19,A,121,1970,110510,913,71500000,4.4,590909,647.0,Koto Estate Company,Ocean Ten,"Sold 2 years prior at $49.5MM / 107 units
+Value-add business plan.",33.7874565,-118.3406057
+20,The Landing at Arroyo,1692 Sycamore Dr,Simi Valley,2024-08-29,A,212,2022,201864,952,95000000,5.42,448113,470.61,,USA Properties Funds,Cap rate is T3/T12 with adjusted Ptax.,34.26805,-118.74487
+21,Paragon at Old Town,700 S Myrtle Ave,Monrovia,2024-08-12,A,163,2010,154578,911,87250000,4.65,535276,564.44,,Sequoia Equities,"Core-Plus, 6,077sf of retail that was 100% leased. Cap rate is T3/T12 with adjusted Ptax.",34.144689,-118.000846
+22,Silva,235 N Hoover St,Silver Lake,2024-08-01,A,221,2024,220632,998,110225000,6.25,498755,499.59,CityView & Wafra,Gemdale USA Corporation,Pre-TCO purchase,34.0756258,-118.2834063
+23,Maya,535 S Kingsley Dr,Koreatown,2024-06-28,A,72,2018,60483,840,30000000,5.2,416666,496.0,,,,34.0647,-118.302951
+24,Reveal Playa Vista,5710 Crescent Park E,Los Angeles,2024-04-01,A,214,2003,222774,1041,122100000,5.41,570560,548.09,DivcoWest,Clarion Partners,Clarion purchased in 2018 for $117.5M (sold 2024 sale at a loss after ULA transfer tax),33.9776,-118.4254
+25,Cobalt,10601 Washington Blvd,Culver City,2024-02-16,A,135,2019,130025,854,67700000,5.0,501481,520.67,Helio Group,Greystar,"14,754sf of retail.",34.0174496,-118.4052362
+26,Ollie on Ogden,939 N Ogden Dr,West Hollywood,2023-12-01,B,16,1957,,,10500000,,656250,,CityView,Blackstone,Partner buyout,34.0878294,-118.35957
+27,The Oliver,11955 W Washington Blvd,Culver City,2023-08-28,A,30,2016,43385,1157,29250000,4.08,975000,674.2,Private HNW investor from Orange County,,Allocate 20% of the purchase price towards the retail.,33.9980001,-118.4214481
+28,Angelene Apartments,915 N La Brea Ave,West Hollywood,2023-03-17,A,179,2016,156446,874,112500000,4.75,628491,719.1,Olympus,,The cap rate is a blended cap rate with apartments and retail. Approximately 33.5k sf of retail is included.,34.0873062,-118.344424
+29,The Vermont,3150 Wilshire Blvd,"Los Angeles
+(Koreatown)",2022-11-01,A,464,2014,,,235000000,,506465,,Harbor Group & Image,Capri Capital Partners & Tru America,,34.0613794,-118.2912663
+30,THEA at Metropolis,"889 Francisco St, Los Angeles","Los Angeles
+(Downtown)",2022-11-08,A,684,2020,709992,1038,504000000,4.1,736842,709.87,Northland,Greenland Holdings,Built as for-sale condos and converted to apartment homes. 85% leased at sale.,34.0483407,-118.2640555
+31,Avalon Studio,4121 4041-4121 Radford Ave,Studio City,2022-09-30,,149,2009,119200,800,76000000,3.8,510067,637.58,"Gelt, Inc.",AvalonBay,Value-Add. Spent additional $33.5k/unit for upgrades.,34.1460239,-118.3923722
+32,Vue Los Feliz,1800 N New Hampshire Ave,Los Angeles,2022-07-01,A,132,1988,,,64000000,,484848,,Alliance Residential,,,34.1036081,-118.2932131
+33,Aliso Apartments,950 E 3rd St,"Los Angeles
+(Arts District)",2022-06-01,A,472,2019,,,311000000,,658898,,,,,34.0459091,-118.2340186
+34,The Bahay,300 Westlake Ave,"Los Angeles
+(Filipinotown)",2022-06-01,A,200,2020,180600,903,137750000,,688750,762.74,Stockbridge Capital,,,34.068718,-118.267052
+35,The Eastway Apartments,8740 La Tijera Blvd,"Los Angeles
+(Westchester)",2022-05-12,A,136,2019,111248,818,73255000,,538639,658.48,Zurich Alternative Asset Management,CIM Group,,33.9575025,-118.3939345
+36,The Laurel,1267 N Laurel Ave,West Hollywood,2022-05-01,A,23,1958,18252,793,36250000,2.76,1576086,1986.08,,,,34.0935179,-118.3645332
+37,1221 Ocean Ave,1221 Ocean Ave,Santa Monica,2022-04-01,A,120,1971,250864,2090,330000000,,2750000,1315.45,,,,34.0164466,-118.5001065
+38,Elements,616 616 Esplanade,Redondo Beach,2022-03-01,A,105,1971,81647,777,74500000,,709523,912.46,Ray Pellegrino Trust,Ideal Capital Group,Sold after $25M of improvements,33.8331585,-118.3895722
+39,Village Lofts,11024 Strathmore Dr,Westwood,2022-03-01,A,31,2015,33223,1071,34400000,,1109677,1035.43,,,,34.064367,-118.450855
+40,Olivia Apartments,"801 S Olive St, Los Angeles",Los Angeles,2022-03-18,A,45,2021,57854,1285,32100000,3.5,713333,554.84,,,,34.0450878,-118.2571353
+41,Towne at Glendale (formerly Verdugo Village),"1221 N Verdugo Rd, Glendale",Glendale,2022-03-30,A,126,1965,143136,1136,79700000,,632539,556.81,CSCDA Community Improvement Authority & BLVD Impact Housing,Interstate Equities Corp,,34.1639149,-118.2334116
+42,Hanover West LA,6711 S Sepulveda Blvd,Los Angeles,2022-03-28,A,180,2021,145800,810,135000000,3.1,750000,925.93,,,,33.9726505,-118.3947539
+43,The Crescent,1274 N Crescent Heights Blvd,West Hollywood,2022-02-01,A,130,1985,127147,774,100000000,,769230,786.49,"Standard Communities, Faring & California Statewide Development Authority",,,34.0937015,-118.3658169
+44,442 Residences 442 W Ocean Blvd,442 Residences 442 W Ocean Blvd,Long Beach,2022-02-01,A,94,2022,,,48500000,,515957,,MWest Holdings,Ensemble Real Estate Investments,,33.767235,-118.19736
+45,Broadstone Candara,738 Wilcox Ave,Hollywood,2021-12-23,A,103,2014,,,60100000,,583495,,Fairfield,,,34.0987,-118.3306
+46,12530 Crenshaw Blvd,12530 Crenshaw Blvd,Hawthorne,2021-12-01,A,230,2021,201783,877,144000000,,626086,713.64,"Standard Communities, Faring & California Statewide Development Authority",The Dinerstein Companies,,33.9182058,-118.3261509
+47,Empire Landing,1901 N Buena Vista St,Burbank,2021-11-10,A,276,2010,,,161000000,2.75,583333,,Clarion & City View,,,34.189915,-118.338357
+48,THEO,289 N El Molino Ave,Pasadena,2021-11-04,A,105,2020,,,67000000,,638095,,Waterford Property Co. & California Statewide Community Development Authority,Summerhill Communities,,34.150939,-118.1370182
+49,301 Ocean Ave,301 Ocean Ave,Santa Monica,2021-10-11,,38,1952,37989,999,70000000,,1842105,1842.64,,Marquis Property Co.,,34.0259173,-118.5131922
+50,The Retreat,22900 Oak Ridge Dr,Santa Clarita,2021-09-01,,148,1998,,,54100000,,365540,,MKB Ventures LP,Benedict Canyon Equities LEM Capital,,34.3988696,-118.5367426
+51,The Madison at Town Center,24555 Town Center Dr,Valencia,2021-09-01,,130,2003,,,62000000,,476923,,Fairfield Residential,Gemdale USA Corporation,,34.416485,-118.56244
+52,Sienna Pointe Apartments,"12625 Frederick St, Moreno Valley",Moreno Valley,2021-08-01,,120,1971,,,107200000,,893333,,Tower 16 Capital Partners,,"Plans to make nearly $10M in renovations incl. modernized unit upgrades, new clubhouses, gyms, updated pool areas, outdoor gaming areas",33.9366805,-117.2623457
+53,The Gallery,"1200 Artesia Blvd, Hermosa Beach",Hermosa Beach,2021-08-01,,169,1971,,,112500000,,665680,,Prime Group,Equity Residential,,33.8725404,-118.3924989
+54,Playa Pacific,"1140 Artesia Blvd, Hermosa Beach",Hermosa Beach,2021-08-01,,285,1972,,,162500000,,570175,,Prime Group,Equity Residential,,33.8727414,-118.3924844
+55,Elan Huntington Beach,"7400 Center Ave, Huntington Beach",Huntington Beach,,A,274,2015,,,133986000,4.2,489000,,Catalyst Housing Group,,,33.7332407,-117.9995993
+56,Union South Bay,615 E Carson St,Carson,2021-07-20,A,357,2020,,,220000000,,616246,,California Statewide Communities Development Authority & Standard Communities,,,33.8316659,-118.2654726
+57,Residences at Westgate,168 W Green St,Pasadena,2021-06-15,A,340,2015,,,237000000,,697058,,Waterford Property Co. & California Statewide Communities,,To be converted to workforce housing,34.1442617,-118.1535854
+58,The Hudson,678 E Walnut St,Pasadena,2021-06-15,A,173,2016,91078,,98100000,,567052,1077.1,Waterford Property Co. & California Statewide Communities,,To be converted to workforce housing,34.1491753,-118.1364652
+59,The Estelle,1333 S Orange Grove Ave,Mid City,2021-05-12,A,61,2020,89887,1473,55000000,,901639,611.88,The Green Cities Company,"Canfield Development, Inc.",,34.052545,-118.3652416
+60,Altana Glendale,633 N Central Ave,Glendale,2021-04-20,A,507,2017,,,300000000,,591715,,Waterford Property Co. & California Statewide Communities,,To be converted to workforce housing,34.1549856,-118.2580356
+61,Next on Lex,275 W Lexington Dr,Glendale,2021-04-20,A,494,2019,,,290000000,,587044,,California Community Housing Agency,Cypress Equity,To be converted to workforce housing,34.1520407,-118.2576899
+62,Via at Sunset Plaza,1124 Sherbourne Dr,West Hollywood,2021-04-07,,23,1958,25650,1115,14000000,3.32,608695,545.81,,,,34.0566543,-118.3792821
+63,318 W Wilson Ave,318 W Wilson Ave,Glendale,2021-03-01,A,164,2020,144000,785,90700000,,507012,577.43,JRK Property Holdings,Molasky Group,15k sf CVS on ground floor. Retail taken out at $500/sf.,34.1479041,-118.2581148
+64,Ocean Santa Monica,901 Ocean Ave,Santa Monica,2021-02-19,,28,1961,30959,1105,32600000,3.72,1164285,1053.0,Coastline Real Estate Investments,American Alliance Property Management,,34.020965,-118.5054178
+65,Elm Apartments,134 Elm Dr,Beverly Hills,2021-02-16,,18,1962,25152,1397,12650000,3.0,702777,502.94,,,,34.065909,-118.3947709
+66,Oakhurst Royal Apartments,412 N Oakhurst Dr,Beverly Hills,2021-02-11,,15,1974,24294,1619,10250000,,683333,421.91,,,,34.0762978,-118.3908515
+67,1835 Holmby Dr,1835 Holmby Dr,West Los Angeles,2021-01-29,,16,1972,28704,1794,13150000,,821875,458.12,,,,34.0554253,-118.4254715
+68,1500 S Granville,1500 S Granville,Los Angeles,2020-12-23,A,335,2020,,,281000000,3.9,710000,,,CIM Group,54k sf of retail. 3 Phases totaling 335 units. Retail taken out at $800psf,34.016204,-118.4354026
+69,Elmview Residences,321-327 S Elm Dr,Beverly Hills,2020-12-03,A,30,2017,64911,2163,35800000,,1193333,551.52,,,,34.0614578,-118.3949951
+70,Canyon Drive Manor Apartments,1738 Canyon Dr,Los Angeles,2020-11-24,,137,1973,,,111500000,,813868,,Raintree Partners,Harry Root Trust,,34.1028556,-118.3165303
+71,8819 Harratt St,8819 Harratt St,West Hollywood,2020-10-01,,21,1989,24673,1174,11975000,4.17,570238,485.35,,,,34.0895177,-118.3884813
+72,416 Broadway,416 Broadway,Glendale,2020-10-01,A,115,2009,,,60000000,3.4,521739,,Fairmont Management,Essex,,34.1467438,-118.2619311
+73,Avalon Venice on Rose,"1957 Lincoln Blvd, Venice",Los Angeles (Venice),2020-09-08,A,70,2012,,,65000000,3.88,821920,,TA Realty,AvalonBay,"10% affordable units
+9,332 sf of retail (fully leased, no credit, all expiring in 2022)",33.9957805,-118.4565165
+74,El Palacio,8491 Fountain Ave,West Hollywood,2020-08-14,,18,1931,21882,1215,15750000,3.8,875000,719.77,,Christina Development,,34.0944256,-118.3544799
+75,Village Pointe,43612 Challenger Way,Lancaster,2020-08-01,,210,1983,,,53000000,,252380,,Community Preservation Partners; Affordable Housing Access,InSite Development; Housing Access Corp of America,,34.6752676,-118.1122943
+76,1346 N Laurel Ave,1346 N Laurel Ave,West Hollywood,2020-07-16,,16,1961,17962,1122,10100000,3.54,631250,562.3,,,,34.0954437,-118.3643394
+77,Doheny Seasons,147 S Doheny Dr,Los Angeles,2020-07-10,A,21,2007,25904,1233,16500000,3.64,785714,636.97,,,,34.0657563,-118.389773
+78,Wilshire Vermont Apartments,3183 Wilshire Blvd,Los Angeles (Koreatown),2020-06-24,A,449,2007,,,132125000,,294265,,Divco West,"Hearthstone Housing, CALPERS",Recapitalized w/ buyer,34.0620242,-118.291101
+79,8225 Fountain Ave,8225 Fountain Ave,West Hollywood,2020-06-01,,7,1926,9331,1333,6840000,4.39,977142,733.0,,,,34.094439,-118.3681445
+80,One Santa Fe,300 S Santa Fe Ave,Los Angeles (Arts District),2020-03-26,A,438,2015,,,175500000,,400684,,Public Sector Investment Board,Berkshire Hathaway,,34.0451839,-118.2324885
+81,Wakaba LA,232 E 2nd St,Los Angeles (Little Tokyo),2020-02-25,A,240,2016,,,115750000,,482291,,JP Morgan Chase,Sares Regis Group,,33.7572215,-118.1237088
+82,Golden West Tower,3510 Maricopa St,Torrance,2020-02-06,,180,1973,,,74160000,,412000,,Community Preservation Partners; Jonathan Rose Companies,Affordable Housing Acces; Vitus Group,,33.8394407,-118.3477317
+83,1901-1903 Orchid Ave,1901-1903 Orchid Ave,Los Angeles,2020-01-28,,9,1929,10573,1174,12500000,,1388888,1182.26,Morgan Brown,John Padgett,,34.1049521,-118.3402719
+84,The Preston Miracle Mile Apartments,630 Masselin Ave,Los Angeles (Miracle Mile),2020-01-01,,168,1990,,,86770000,,516488,,Sares Regis Group,Heitman,,34.0584102,-118.3543281
+85,The Gardens at Wilshire Center,"710 S Serrano Ave, Los Angeles",Los Angeles,,A,159,2008,127492,,,,,,Watermarke,Chandler / Amstar,,34.0593837,-118.3064843
