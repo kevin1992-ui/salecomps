@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CompTrack — Multifamily Sale Comps</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --navy: #0D1F35; --navy2: #162C45; --gold: #C8993A; --gold-light: #F0D9A0;
+    --cream: #F7F4EE; --cream2: #EDE9E0; --text: #0D1F35; --text2: #5A6A7A; --text3: #8A9BAD;
+    --border: rgba(13,31,53,0.12); --border2: rgba(13,31,53,0.06);
+    --shadow: 0 4px 24px rgba(13,31,53,0.10); --shadow-sm: 0 2px 8px rgba(13,31,53,0.08);
+    --r: 10px; --r-sm: 6px; --sidebar-width: 400px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); }
+  .app { display: flex; height: 100vh; position: relative; }
+  .sidebar { width: var(--sidebar-width); flex-shrink: 0; display: flex; flex-direction: column; background: #fff; border-right: 1px solid var(--border); z-index: 10; overflow: hidden; transition: width 0.25s ease; }
+  .sidebar.collapsed { width: 0; border-right: none; }
+  .map-wrap { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .map-area { flex: 1; position: relative; }
+  #map { width: 100%; height: 100%; background: #E5EAEF; }
+
+  .header { padding: 20px 20px 16px; border-bottom: 1px solid var(--border2); }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--navy); letter-spacing: -0.3px; }
+  .logo span { color: var(--gold); }
+  .search-wrap { position: relative; }
+  .search-wrap input { width: 100%; height: 38px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 12px 0 34px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .search-wrap input:focus { border-color: var(--navy); background: #fff; }
+  .search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); opacity: 0.35; }
+
+  .filter-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 14px 16px; display: flex; align-items: center; justify-content: center; gap: 18px; box-shadow: 0 1px 3px rgba(13,31,53,0.04); z-index: 1000; width: 100%; position: relative; flex-wrap: nowrap; overflow-x: auto; transition: padding 0.25s ease, gap 0.25s ease; }
+  body.sidebar-hidden .filter-bar { padding-left: 50px; padding-right: 24px; gap: 28px; }
+  .filter-bar::-webkit-scrollbar { height: 0; }
+  .filter-group { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 0; }
+  .filter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; white-space: nowrap; }
+  .filter-suffix { font-size: 11px; color: var(--text2); white-space: nowrap; }
+  .filter-sep { color: var(--text3); font-size: 11px; padding: 0 2px; }
+  .filter-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+  .filter-combo { position: relative; width: 80px; flex-shrink: 0; }
+  .filter-combo-wide { width: 140px; }
+  .filter-combo input[readonly] { cursor: pointer; }
+  .filter-combo input { width: 100%; height: 34px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 28px 0 10px; font-size: 12px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; text-align: left; -moz-appearance: textfield; appearance: textfield; transition: border-color 0.15s, background 0.15s; }
+  .filter-combo input::-webkit-outer-spin-button, .filter-combo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .filter-combo input:focus { border-color: var(--navy); background: #fff; }
+  .filter-combo input::placeholder { color: var(--text3); }
+  .filter-combo .caret { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text3); font-size: 10px; }
+  .filter-combo .dropdown-toggle { position: absolute; top: 0; bottom: 0; right: 0; width: 22px; background: transparent; border: none; cursor: pointer; }
+  .filter-combo-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); box-shadow: var(--shadow-sm); z-index: 1500; display: none; overflow: hidden; min-width: 100%; max-height: 220px; overflow-y: auto; }
+  .filter-combo-menu.show { display: block; }
+  .filter-combo-menu .opt { padding: 8px 12px; font-size: 12px; cursor: pointer; color: var(--text); transition: background 0.1s; white-space: nowrap; }
+  .filter-combo-menu .opt:hover { background: var(--cream); }
+  .filter-combo-menu .opt-clear { color: var(--gold); font-weight: 500; border-top: 1px solid var(--border2); }
+
+  .filter-clear { font-size: 11px; color: var(--gold); cursor: pointer; font-weight: 500; padding: 6px 12px; border-radius: var(--r-sm); transition: background 0.15s; white-space: nowrap; }
+  .filter-clear:hover { background: rgba(200,153,58,0.1); }
+
+  .sidebar-toggle { position: fixed; top: 50%; left: var(--sidebar-width); transform: translateY(-50%); background: var(--navy); color: #fff; border: none; width: 28px; height: 64px; border-radius: 0 var(--r-sm) var(--r-sm) 0; cursor: pointer; z-index: 9000; display: flex; align-items: center; justify-content: center; box-shadow: 3px 0 10px rgba(13,31,53,0.3); transition: background 0.15s, width 0.15s, left 0.25s ease; font-size: 16px; font-weight: 700; line-height: 1; padding: 0; font-family: inherit; }
+  .sidebar-toggle:hover { background: var(--navy2); width: 34px; }
+  body.sidebar-hidden .sidebar-toggle { left: 0; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border2); }
+  .stat { padding: 12px 14px; border-right: 1px solid var(--border2); }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; font-weight: 500; }
+  .stat-val { font-size: 16px; font-weight: 600; color: var(--navy); }
+
+  .comp-list { flex: 1; overflow-y: auto; }
+  .comp-list::-webkit-scrollbar { width: 5px; }
+  .comp-list::-webkit-scrollbar-track { background: transparent; }
+  .comp-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .comp-item { padding: 14px 20px; border-bottom: 1px solid var(--border2); cursor: pointer; transition: background 0.1s; position: relative; }
+  .comp-item:hover { background: var(--cream); }
+  .comp-item.active { background: #EBF1F8; border-left: 3px solid var(--navy); padding-left: 17px; }
+  .comp-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; gap: 8px; }
+  .comp-name { font-size: 13px; font-weight: 600; color: var(--navy); line-height: 1.3; }
+  .comp-price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
+  .comp-price { font-size: 13px; font-weight: 600; color: var(--gold); white-space: nowrap; }
+  .comp-ppu { font-size: 11px; font-weight: 500; color: var(--gold); white-space: nowrap; }
+  .comp-addr { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+  .comp-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; }
+  .tag-gray { background: var(--cream2); color: var(--text2); }
+  .tag-gold { background: #C8993A18; color: #8A6018; }
+  .empty-state { padding: 40px 20px; text-align: center; color: var(--text3); font-size: 13px; }
+
+  .actions-wrap { padding: 12px 20px; border-top: 1px solid var(--border2); display: flex; gap: 6px; flex-wrap: wrap; }
+  .action-btn { flex: 1 1 calc(50% - 3px); min-width: 0; height: 36px; border: none; border-radius: var(--r-sm); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0 8px; }
+  .action-btn.primary { background: var(--navy); color: #fff; }
+  .action-btn.primary:hover { background: var(--navy2); }
+  .action-btn.gold { background: var(--gold); color: #fff; }
+  .action-btn.gold:hover { background: #A87C28; }
+  .action-btn.outline { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+  .action-btn.outline:hover { background: var(--cream); border-color: var(--navy); }
+
+  .map-controls { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 500; }
+  .map-btn { width: 38px; height: 38px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow-sm); font-size: 16px; font-weight: 500; color: var(--navy); transition: all 0.15s; }
+  .map-btn:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .map-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .map-btn-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; }
+
+  .subject-panel { position: absolute; top: 16px; left: 36px; background: #fff; border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; box-shadow: var(--shadow-sm); z-index: 500; width: 280px; }
+  .subject-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; margin-bottom: 8px; }
+  .subject-input-row { display: flex; gap: 6px; }
+  .subject-input { flex: 1; height: 32px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 10px; font-size: 12px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; }
+  .subject-input:focus { border-color: var(--navy); background: #fff; }
+  .subject-btn { height: 32px; padding: 0 12px; background: var(--navy); color: #fff; border: none; border-radius: var(--r-sm); font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .subject-btn:hover { background: var(--navy2); }
+  .subject-info { margin-top: 8px; font-size: 11px; color: var(--text2); display: none; }
+  .subject-info.show { display: block; }
+  .subject-info strong { color: var(--navy); }
+  .subject-clear { margin-left: 8px; color: var(--gold); cursor: pointer; font-weight: 500; }
+
+  .comp-marker { background: var(--navy); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); width: 14px; height: 14px; cursor: pointer; transition: transform 0.15s; }
+  .comp-marker:hover { transform: scale(1.4); }
+  .comp-marker.selected { background: var(--gold) !important; transform: scale(1.5); border-color: #fff; box-shadow: 0 0 0 4px rgba(200,153,58,0.3), 0 2px 8px rgba(0,0,0,0.3); }
+  .subject-marker { background: var(--gold); border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 3px rgba(200,153,58,0.25), 0 2px 8px rgba(0,0,0,0.4); width: 22px; height: 22px; }
+
+  /* Cluster bubbles - the SVG inside handles all visuals; wrapper just needs to be transparent */
+  .ct-cluster-wrapper {
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .ct-cluster-wrapper:hover { transform: scale(1.08); }
+
+  .leaflet-popup-content-wrapper { border-radius: var(--r) !important; padding: 0 !important; overflow: hidden; box-shadow: var(--shadow) !important; border: 1px solid var(--border); }
+  .leaflet-popup-content { margin: 0 !important; min-width: 280px; font-family: 'DM Sans', sans-serif; }
+  .leaflet-popup-tip { background: var(--navy); }
+  .leaflet-popup-close-button { font-size: 20px !important; padding: 6px 10px !important; color: #fff !important; opacity: 0.7; }
+  .leaflet-popup-close-button:hover { opacity: 1; }
+  .popup-header { background: var(--navy); color: #fff; padding: 14px 16px; }
+  .popup-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; padding-right: 20px; line-height: 1.3; }
+  .popup-addr { font-size: 11px; opacity: 0.75; margin-bottom: 6px; }
+  .popup-meta-header { font-size: 11px; opacity: 0.85; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.15); }
+  .popup-meta-header strong { font-weight: 500; }
+  .popup-body { padding: 14px 16px; background: #fff; }
+  .popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .popup-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 2px; font-weight: 500; }
+  .popup-stat-val { font-size: 14px; font-weight: 600; color: var(--navy); }
+  .popup-meta { font-size: 11px; color: var(--text2); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border2); line-height: 1.6; }
+  .popup-meta strong { color: var(--navy); font-weight: 500; }
+  .popup-notes { font-size: 11px; color: var(--text2); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border2); line-height: 1.45; font-style: italic; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(13,31,53,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(13,31,53,0.25); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--navy); }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text3); line-height: 1; padding: 0 8px; }
+  .modal-close:hover { color: var(--navy); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
+  .form-field input, .form-field select, .form-field textarea { font-family: inherit; font-size: 13px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 9px 12px; outline: none; background: var(--cream); color: var(--text); transition: border-color 0.15s; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--navy); background: #fff; }
+  .form-field textarea { resize: vertical; min-height: 70px; }
+  .form-section { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); font-weight: 600; grid-column: 1 / -1; margin-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border2); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border2); }
+  .btn-cancel { background: none; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 18px; height: 40px; font-family: inherit; font-size: 13px; cursor: pointer; color: var(--text2); }
+  .btn-cancel:hover { background: var(--cream); }
+  .btn-save { background: var(--navy); color: #fff; border: none; border-radius: var(--r-sm); padding: 0 22px; height: 40px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-save:hover { background: var(--navy2); }
+  .hint { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .csv-output { background: var(--cream); border-radius: var(--r-sm); padding: 14px; font-family: 'SF Mono', Menlo, Monaco, monospace; font-size: 11px; color: var(--text); white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto; border: 1px solid var(--border); }
+
+  .pdf-comp-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--cream); margin-top: 8px; }
+  .pdf-comp-row { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border2); font-size: 12px; gap: 10px; cursor: pointer; transition: background 0.1s; }
+  .pdf-comp-row:last-child { border-bottom: none; }
+  .pdf-comp-row:hover { background: #fff; }
+  .pdf-comp-row input[type="checkbox"] { margin: 0; width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; accent-color: var(--navy); }
+  .pdf-comp-row .pdf-comp-name { font-weight: 500; color: var(--navy); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pdf-comp-row .pdf-comp-meta { color: var(--text2); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+  .pdf-list-controls { display: flex; gap: 12px; font-size: 11px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+  .pdf-list-controls a { color: var(--gold); cursor: pointer; font-weight: 500; }
+  .pdf-list-controls a:hover { text-decoration: underline; }
+  .pdf-list-count { margin-left: auto; color: var(--text2); }
+
+  #pdfMapContainer { position: fixed; top: -9999px; left: -9999px; width: 1100px; height: 700px; z-index: -1; }
+
+  .loading-overlay { position: fixed; inset: 0; background: rgba(13,31,53,0.4); z-index: 10000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+  .loading-overlay.show { display: flex; }
+  .loading-box { background: #fff; padding: 28px 36px; border-radius: var(--r); box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; }
+  .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .leaflet-control-attribution { font-size: 9px !important; background: rgba(255,255,255,0.7) !important; }
+</style>
+</head>
+<body>
+
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Hide/show sidebar">‹</button>
+
+<div class="app">
+  <div class="sidebar" id="sidebar">
+    <div class="header">
+      <div class="header-top">
+        <div class="logo">Comp<span>Track</span></div>
+      </div>
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#0D1F35" stroke-width="1.5"/><path d="M10 10l2.5 2.5" stroke="#0D1F35" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search property, buyer, seller, submarket...">
+      </div>
+    </div>
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="comp-list" id="compList"></div>
+    <div class="actions-wrap">
+      <button class="action-btn primary" onclick="openAddModal()">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+        Add comp
+      </button>
+      <button class="action-btn outline" onclick="openExportModal()">CSV</button>
+      <button class="action-btn gold" onclick="openPdfModal()" style="flex: 1 1 100%;">
+        <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3.5 6l3 3 3-3M1 10.5h11" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export to PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="map-wrap">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">Market</span>
+        <div class="filter-combo filter-combo-wide">
+          <input type="text" id="filterMarket" placeholder="All markets" readonly autocomplete="off" onclick="toggleCombo('market', event)">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('market', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-market">
+            <div class="opt" onclick="setMarketFilter('')">All markets</div>
+            <!-- market options injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-group">
+        <span class="filter-label">Sale Date</span>
+        <span class="filter-suffix">last</span>
+        <div class="filter-combo">
+          <input type="number" id="filterMonths" placeholder="—" min="1" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('months', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-months">
+            <div class="opt" onclick="setComboValue('filterMonths', '6')">6 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '12')">12 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '24')">24 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '36')">36 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '60')">60 months</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterMonths', '')">Clear</div>
+          </div>
+        </div>
+        <span class="filter-suffix">months</span>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-group">
+        <span class="filter-label">Unit Count</span>
+        <div class="filter-combo">
+          <input type="number" id="filterUnitsMin" placeholder="min" min="0" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('unitsMin', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-unitsMin">
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '50')">50+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '100')">100+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '150')">150+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '200')">200+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '300')">300+</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterUnitsMin', '')">Clear</div>
+          </div>
+        </div>
+        <span class="filter-sep">–</span>
+        <div class="filter-combo">
+          <input type="number" id="filterUnitsMax" placeholder="max" min="0" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('unitsMax', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-unitsMax">
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '100')">≤ 100</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '200')">≤ 200</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '300')">≤ 300</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '500')">≤ 500</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterUnitsMax', '')">Clear</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-group">
+        <span class="filter-label">Year Built</span>
+        <div class="filter-combo">
+          <input type="number" id="filterYearMin" placeholder="min" min="1800" max="2100" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('yearMin', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-yearMin">
+            <div class="opt" onclick="setComboValue('filterYearMin', '1980')">1980+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '1990')">1990+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2000')">2000+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2010')">2010+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2015')">2015+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2020')">2020+</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterYearMin', '')">Clear</div>
+          </div>
+        </div>
+        <span class="filter-sep">–</span>
+        <div class="filter-combo">
+          <input type="number" id="filterYearMax" placeholder="max" min="1800" max="2100" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('yearMax', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-yearMax">
+            <div class="opt" onclick="setComboValue('filterYearMax', '1990')">≤ 1990</div>
+            <div class="opt" onclick="setComboValue('filterYearMax', '2000')">≤ 2000</div>
+            <div class="opt" onclick="setComboValue('filterYearMax', '2010')">≤ 2010</div>
+            <div class="opt" onclick="setComboValue('filterYearMax', '2020')">≤ 2020</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterYearMax', '')">Clear</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <span class="filter-clear" onclick="clearAllFilters()">Clear filters</span>
+    </div>
+
+    <div class="map-area">
+      <div id="map"></div>
+      <div class="subject-panel">
+        <div class="subject-title">Subject Property</div>
+        <div class="subject-input-row">
+          <input type="text" class="subject-input" id="subjectInput" placeholder="Enter address or lat,lng" onkeydown="if(event.key==='Enter')setSubjectProperty()">
+          <button class="subject-btn" onclick="setSubjectProperty()">Set</button>
+        </div>
+        <div class="subject-info" id="subjectInfo"></div>
+      </div>
+      <div class="map-controls">
+        <button class="map-btn" title="Zoom in" onclick="map.zoomIn()">+</button>
+        <button class="map-btn" title="Zoom out" onclick="map.zoomOut()">−</button>
+        <button class="map-btn" title="Reset view" onclick="resetView()" style="font-size:14px;">⌖</button>
+        <button class="map-btn" title="Toggle satellite" onclick="toggleSatellite()" id="satBtn"><span class="map-btn-label">SAT</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="addModal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Add sale comp</div><button class="modal-close" onclick="closeModal()">×</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;">Fill in what you have — leave blanks where you don't. After saving, you'll get a CSV row to paste into your <code style="background:var(--cream);padding:1px 5px;border-radius:3px;font-size:11px;">comps.csv</code> on GitHub.</p>
+    <div class="form-grid">
+      <div class="form-section">Property details</div>
+      <div class="form-field full"><label>Property name *</label><input type="text" id="f_name" placeholder="The Residences at Silver Lake"></div>
+      <div class="form-field full"><label>Address *</label><input type="text" id="f_address" placeholder="1234 Sunset Blvd, Los Angeles, CA 90026"></div>
+      <div class="form-field"><label>Submarket</label><input type="text" id="f_market" placeholder="Silver Lake / Echo Park"></div>
+      <div class="form-field"><label>Units</label><input type="number" id="f_units" placeholder="180"></div>
+      <div class="form-field"><label>Year built</label><input type="number" id="f_yearbuilt" placeholder="2003"></div>
+      <div class="form-field"><label>Total SF</label><input type="number" id="f_sf" placeholder="153000"></div>
+      <div class="form-field"><label>Avg unit SF</label><input type="number" id="f_avgsf" placeholder="850"></div>
+      <div class="form-field"><label></label><span></span></div>
+      <div class="form-section">Transaction details</div>
+      <div class="form-field"><label>Sale date *</label><input type="date" id="f_date"></div>
+      <div class="form-field"><label>Sale price ($)</label><input type="number" id="f_price" placeholder="45000000"></div>
+      <div class="form-field"><label>Cap rate (%)</label><input type="number" step="0.01" id="f_cap" placeholder="4.75"></div>
+      <div class="form-field"><label>Price per unit ($)</label><input type="number" id="f_ppu" placeholder="250000"></div>
+      <div class="form-field"><label>Price per SF ($)</label><input type="number" step="0.01" id="f_psf" placeholder="295"></div>
+      <div class="form-field"><label></label><span></span></div>
+      <div class="form-field"><label>Buyer</label><input type="text" id="f_buyer" placeholder="Blackstone RE"></div>
+      <div class="form-field"><label>Seller</label><input type="text" id="f_seller" placeholder="Greystar"></div>
+      <div class="form-section">Map coordinates *</div>
+      <div class="form-field"><label>Latitude</label><input type="number" step="0.00001" id="f_lat" placeholder="34.0837"><span class="hint">Right-click on Google Maps → coords appear at top, click to copy</span></div>
+      <div class="form-field"><label>Longitude</label><input type="number" step="0.00001" id="f_lng" placeholder="-118.2608"></div>
+      <div class="form-section">Notes</div>
+      <div class="form-field full"><label>Deal notes</label><textarea id="f_notes" placeholder="Value-add play. Below market rents..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="generateCsvRow()">Generate CSV row</button></div>
+    <div id="csvRowOutput" style="display:none; margin-top:18px;">
+      <div style="font-size:11px; color:var(--text2); margin-bottom:6px;">Copy this row, then on GitHub: open <strong>comps.csv</strong> → click pencil to edit → paste at the bottom → commit.</div>
+      <div class="csv-output" id="csvRowText"></div>
+      <button class="btn-save" style="margin-top:10px; width:100%;" onclick="copyCsvRow()">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div id="exportModal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closeExportModal()">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><div class="modal-title">Export visible comps</div><button class="modal-close" onclick="closeExportModal()">×</button></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Export the <strong id="exportCount">0</strong> currently visible comps as a CSV.</p>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeExportModal()">Cancel</button><button class="btn-save" onclick="downloadCSV()">Download CSV</button></div>
+  </div>
+</div>
+
+<div id="pdfModal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Export PDF — Sale Comparables</div><button class="modal-close" onclick="closePdfModal()">×</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;">Generate a clean, IC-ready PDF summary. Optionally add a subject property to compare against the comp set.</p>
+
+    <div class="form-grid">
+      <div class="form-section">Report details</div>
+      <div class="form-field full"><label>Report title (optional)</label><input type="text" id="pdf_title" placeholder="Westside Multifamily Comps — May 2026"></div>
+
+      <div class="form-section">Subject property (optional)</div>
+      <div class="form-field full"><label>Property name</label><input type="text" id="pdf_subj_name" placeholder="The Avenue Apartments"></div>
+      <div class="form-field full"><label>Address</label><input type="text" id="pdf_subj_addr" placeholder="1234 Sunset Blvd, Los Angeles, CA"></div>
+      <div class="form-field"><label>Units</label><input type="number" id="pdf_subj_units" placeholder="180"></div>
+      <div class="form-field"><label>Year built</label><input type="number" id="pdf_subj_year" placeholder="2018"></div>
+      <div class="form-field"><label>Proposed purchase price ($)</label><input type="number" id="pdf_subj_price" placeholder="65000000"></div>
+      <div class="form-field"><label>Proposed cap rate (%)</label><input type="number" step="0.01" id="pdf_subj_cap" placeholder="4.50"></div>
+      <div class="form-field"><label>Total SF (optional)</label><input type="number" id="pdf_subj_sf" placeholder="153000"></div>
+      <div class="form-field"><label>&nbsp;</label><span></span></div>
+      <div class="form-field"><label>Latitude (for map)</label><input type="number" step="0.00001" id="pdf_subj_lat" placeholder="34.0837"></div>
+      <div class="form-field"><label>Longitude (for map)</label><input type="number" step="0.00001" id="pdf_subj_lng" placeholder="-118.2608"><span class="hint">If lat/lng provided, a map page will be added.</span></div>
+
+      <div class="form-section">Select comps to include</div>
+      <div class="form-field full">
+        <div class="pdf-list-controls">
+          <a onclick="pdfSelectAll(true)">Select all</a>
+          <a onclick="pdfSelectAll(false)">Deselect all</a>
+          <a onclick="pdfSelectVisible()">Map view only</a>
+          <span class="pdf-list-count" id="pdfSelectedCount">0 selected</span>
+        </div>
+        <div class="pdf-comp-list" id="pdfCompList"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer"><button class="btn-cancel" onclick="closePdfModal()">Cancel</button><button class="btn-save" onclick="generatePDF()">Generate PDF</button></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div>
+      <div style="font-weight:600;color:var(--navy);" id="loadingText">Generating PDF...</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px;">This may take a few seconds</div>
+    </div>
+  </div>
+</div>
+
+<div id="pdfMapContainer"></div>
+
+<script>
+const COMPS = [
+  {id:1,name:"Esperanza at Duarte Station",address:"Esperanza at Duarte Station, Duarte",market:"Los Angeles",submarket:"Duarte",date:"2026-02-27",class:"",units:344,yearBuilt:2023.0,yearBuiltRaw:2023,sf:269083,avgSF:782.0,price:141000000,cap:4.75,ppu:409883,psf:524.0,buyer:"Holland Partners with Invesco/State of Florida",seller:"MBK Real Estate/Haseko",notes:"",lat:34.1391,lng:-117.9709},
+  {id:2,name:"C on Pico",address:"1242 W Pico Blvd, Los Angeles",market:"Los Angeles",submarket:"Los Angeles",date:"2026-01-21",class:"",units:94,yearBuilt:2014.0,yearBuiltRaw:2014,sf:null,avgSF:null,price:38000000,cap:null,ppu:404255,psf:null,buyer:"JRK Property Holdings",seller:"",notes:"",lat:34.0423629,lng:-118.2720341},
+  {id:3,name:"mResidences Miracle Mile",address:"6675 W Olympic Blvd, Los Angeles",market:"Los Angeles",submarket:"Los Angeles",date:"2026-01-08",class:"",units:60,yearBuilt:2008.0,yearBuiltRaw:2008,sf:77220,avgSF:1287.0,price:30150000,cap:null,ppu:502500,psf:390.44,buyer:"Alliance Residential",seller:"",notes:"",lat:34.0594481,lng:-118.3741802},
+  {id:4,name:"Stella",address:"13488 W Maxella Ave, Marina Del Rey, CA 90292",market:"Los Angeles",submarket:"Marina del Rey",date:"2025-10-01",class:"",units:244,yearBuilt:2013.0,yearBuiltRaw:2013,sf:236785,avgSF:970.0,price:141000000,cap:4.66,ppu:577868,psf:595.48,buyer:"Carmel Partners",seller:"Nuveen",notes:"Value add play.
+
+Nuveen bought in 2013 for $167.3M ($686k/unit)",lat:33.9855623,lng:-118.4422136},
+  {id:5,name:"Santal Thousand Oaks",address:"299 Thousand Oaks Blvd, Thousand Oaks, CA 91360",market:"Ventura County",submarket:"Thousand Oaks",date:"2025-10-01",class:"",units:142,yearBuilt:2023.0,yearBuiltRaw:2023,sf:125243,avgSF:813.0,price:83000000,cap:5.0,ppu:584507,psf:662.71,buyer:"BlackRock",seller:"Latigo Group",notes:"Includes 9,821SF of retail.",lat:34.1706,lng:-118.8376},
+  {id:6,name:"Avila",address:"75 W Walnut St, Pasadena, CA 91103",market:"Los Angeles",submarket:"Pasadena",date:"2025-07-24",class:"",units:201,yearBuilt:2017.0,yearBuiltRaw:2017,sf:175838,avgSF:874.0,price:115000000,cap:4.45,ppu:572139,psf:654.01,buyer:"Acacia",seller:"Greystar",notes:"",lat:34.1502298,lng:-118.1521692},
+  {id:7,name:"The 5550",address:"5550 Hollywood Blvd, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2025-06-01",class:"",units:280,yearBuilt:2018.0,yearBuiltRaw:2018,sf:204400,avgSF:730.0,price:98350000,cap:5.0,ppu:351250,psf:481.0,buyer:"Grubb Properties/PCCP",seller:"Vanbarton",notes:"Assumable dent of 4.37% I/O through Nov 2027",lat:34.1013517,lng:-118.3105011},
+  {id:8,name:"Modera Glendale",address:"600 N Central Ave, Glendale, CA 91203",market:"Los Angeles",submarket:"Glendale",date:"2025-04-23",class:"A",units:235,yearBuilt:2015.0,yearBuiltRaw:2015,sf:187073,avgSF:796.0,price:126000000,cap:4.54,ppu:536170,psf:673.53,buyer:"Sobrato",seller:"MillCreek | Rockwood",notes:"",lat:34.1553024,lng:-118.2576688},
+  {id:9,name:"the BW",address:"1168 South Barrington Avenue",market:"Los Angeles",submarket:"Brentwood",date:"2025-04-07",class:"A",units:78,yearBuilt:2013.0,yearBuiltRaw:2013,sf:77142,avgSF:989.0,price:58100000,cap:4.75,ppu:744871,psf:753.16,buyer:"Famh Group",seller:"California Landmark Group",notes:"Includes 2,300sf of retail.",lat:34.0500356,lng:-118.4612607},
+  {id:10,name:"Vinz on Fairfax",address:"950 S Fairfax Ave, Los Angeles, CA 90036",market:"Los Angeles",submarket:"Mid-Wilshire",date:"2025-01-31",class:"A",units:144,yearBuilt:2018.0,yearBuiltRaw:2018,sf:124581,avgSF:837.0,price:68421500,cap:5.1,ppu:475149,psf:549.21,buyer:"Seminole Real Estate Fund",seller:"Alliance Residential",notes:"",lat:34.0593636,lng:-118.3631246},
+  {id:12,name:"Desmond on Wilshire",address:"5520 Wilshire Blvd, Los Angeles, CA 90036",market:"Los Angeles",submarket:"Miracle Mile",date:"2025-01-29",class:"A",units:175,yearBuilt:2016.0,yearBuiltRaw:2016,sf:144725,avgSF:827.0,price:88000000,cap:4.9,ppu:502857,psf:608.05,buyer:"Carmel Partners",seller:"Greystar",notes:"",lat:34.0621793,lng:-118.3485937},
+  {id:13,name:"Alta Ink",address:"5750 Hollywood Blvd, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2025-01-01",class:"A",units:161,yearBuilt:2021.0,yearBuiltRaw:2021,sf:136450,avgSF:847.0,price:55000000,cap:2.95,ppu:341614,psf:403.08,buyer:"Lighthouse Group",seller:"Wood Partners",notes:"",lat:34.1013494,lng:-118.3153453},
+  {id:14,name:"La Belle",address:"6138 Franklin Ave, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2024-12-20",class:"A",units:146,yearBuilt:2010.0,yearBuiltRaw:2010,sf:119063,avgSF:815.0,price:52150000,cap:4.7,ppu:357191,psf:438.0,buyer:"JSP",seller:"LaSalle",notes:"",lat:34.1051602,lng:-118.3233787},
+  {id:15,name:"Estelle",address:"1333 S Orange Grove A",market:"Los Angeles",submarket:"Los Angeles",date:"2024-11-01",class:"A",units:61,yearBuilt:2020.0,yearBuiltRaw:2020,sf:90021,avgSF:1475.0,price:41500000,cap:4.6,ppu:680327,psf:461.0,buyer:"Brasa/Canfield",seller:"Green Cities",notes:"",lat:34.052545,lng:-118.3652416},
+  {id:16,name:"The Gabriel",address:"2771 N Garey Ave, Pomona, CA 91767",market:"Los Angeles",submarket:"Pomona",date:"2024-10-01",class:"A",units:312,yearBuilt:2022.0,yearBuiltRaw:2022,sf:275496,avgSF:883.0,price:115000000,cap:5.25,ppu:368589,psf:417.43,buyer:"Prime Residential",seller:"Greystar",notes:"Property was just finishing lease up. T12 included heavy vacancy, concessions, opex, etc. Buyer closed at stabilization.",lat:34.0955493,lng:-117.748678},
+  {id:17,name:"The Lofts at NoHo Commons",address:"11136 Chandler Blvd, North Hollywood",market:"Los Angeles",submarket:"North Hollywood",date:"2024-10-17",class:"A",units:292,yearBuilt:2006.0,yearBuiltRaw:2006,sf:225001,avgSF:771.0,price:92500000,cap:5.5,ppu:316780,psf:411.0,buyer:"GPI Companies",seller:"Mwest Holdings/KBS",notes:"The Lofts at Noho recently went under a $9 million renovation. This includes upgrades to EV charging spots, extensive murals, new signage, landscape, hardscape, and updating 85 percent of the interior market rate units.  The unit mix includes 251 studios and 41 one-bedroom units. Of the total unit count, 28 have been set aside as affordable. Nine units are available to households earning at or below 110 percent of the area median income (AMI), 14 are available at 60 percent of AMI, and five are available at 50 percent of AMI.",lat:34.168015,lng:-118.3730152},
+  {id:18,name:"Canvas LA",address:"138 N Beaudry Ave, Los Angeles, CA 90012",market:"Los Angeles",submarket:"DTLA/Echo Park",date:"2024-09-03",class:"A",units:210,yearBuilt:2008.0,yearBuiltRaw:2008,sf:178367,avgSF:849.0,price:61500000,cap:5.4,ppu:292857,psf:344.79,buyer:"Advance Real Estate",seller:"Magnolia Capital/Goldman Sachs",notes:"Previously sold in 2018 for $88.3M. Podium construction. 100% market rate",lat:34.0598783,lng:-118.2536247},
+  {id:19,name:"The Highlands",address:"25909 Rolling Hills Rd, Torrance, CA 90505",market:"Los Angeles",submarket:"Torrance",date:"2024-08-19",class:"A",units:121,yearBuilt:1970.0,yearBuiltRaw:1970,sf:110510,avgSF:913.0,price:71500000,cap:4.4,ppu:590909,psf:647.0,buyer:"Koto Estate Company",seller:"Ocean Ten",notes:"Sold 2 years prior at $49.5MM / 107 units
+Value-add business plan.",lat:33.7874565,lng:-118.3406057},
+  {id:20,name:"The Landing at Arroyo",address:"1692 Sycamore Dr, Simi Valley, CA 93065",market:"Ventura County",submarket:"Simi Valley",date:"2024-08-29",class:"A",units:212,yearBuilt:2022.0,yearBuiltRaw:2022,sf:201864,avgSF:952.0,price:95000000,cap:5.42,ppu:448113,psf:470.61,buyer:"Afton Properties",seller:"USA Properties Funds",notes:"Cap rate is T3/T12 with adjusted Ptax.",lat:34.26805,lng:-118.74487},
+  {id:21,name:"Paragon at Old Town",address:"700 S Myrtle Ave, Monrovia, CA 91016",market:"Los Angeles",submarket:"Monrovia",date:"2024-08-12",class:"A",units:163,yearBuilt:2010.0,yearBuiltRaw:2010,sf:154578,avgSF:911.0,price:87250000,cap:4.65,ppu:535276,psf:564.44,buyer:"SCS Development",seller:"Sequoia Equities",notes:"Core-Plus, 6,077sf of retail that was 100% leased. Cap rate is T3/T12 with adjusted Ptax.",lat:34.144689,lng:-118.000846},
+  {id:22,name:"Silva",address:"235 N Hoover St, Los Angeles, CA 90004",market:"Los Angeles",submarket:"Silver Lake",date:"2024-08-01",class:"A",units:221,yearBuilt:2024.0,yearBuiltRaw:2024,sf:220632,avgSF:998.0,price:110225000,cap:6.25,ppu:498755,psf:499.59,buyer:"CityView & Wafra",seller:"Gemdale USA Corporation",notes:"Pre-TCO purchase",lat:34.0756258,lng:-118.2834063},
+  {id:23,name:"Maya",address:"535 S Kingsley Dr",market:"Los Angeles",submarket:"Koreatown",date:"2024-06-28",class:"A",units:72,yearBuilt:2018.0,yearBuiltRaw:2018,sf:60483,avgSF:840.0,price:30000000,cap:5.2,ppu:416666,psf:496.0,buyer:"",seller:"",notes:"",lat:34.0647,lng:-118.302951},
+  {id:24,name:"Reveal Playa Vista",address:"5710 Crescent Prk E, Playa Vista, CA 90094",market:"Los Angeles",submarket:"Playa Vista",date:"2024-04-01",class:"A",units:214,yearBuilt:2003.0,yearBuiltRaw:2003,sf:220337,avgSF:1030.0,price:122000000,cap:4.3,ppu:570093,psf:554.0,buyer:"Divco",seller:"Clarion Partners",notes:"Clarion purchased in 2018 for $117.5M (sold 2024 sale at a loss after ULA transfer tax); Renovated 2020",lat:33.9776,lng:-118.4254},
+  {id:25,name:"Cobalt",address:"10601 Washington Blvd, Culver City, CA 90232",market:"Los Angeles",submarket:"Culver City",date:"2024-02-16",class:"A",units:135,yearBuilt:2019.0,yearBuiltRaw:2019,sf:130025,avgSF:854.0,price:67700000,cap:5.0,ppu:501481,psf:520.67,buyer:"Helio Group",seller:"Greystar",notes:"14,754sf of retail.",lat:34.0174496,lng:-118.4052362},
+  {id:26,name:"Ollie on Ogden",address:"939 N Ogden Dr",market:"Los Angeles",submarket:"West Hollywood",date:"2023-12-01",class:"B",units:16,yearBuilt:1957.0,yearBuiltRaw:1957,sf:null,avgSF:null,price:10500000,cap:null,ppu:656250,psf:null,buyer:"CityView",seller:"Blackstone",notes:"Partner buyout",lat:34.0878294,lng:-118.35957},
+  {id:27,name:"The Oliver",address:"11955 W Washington Blvd",market:"Los Angeles",submarket:"Culver City",date:"2023-08-28",class:"A",units:30,yearBuilt:2016.0,yearBuiltRaw:2016,sf:43385,avgSF:1157.0,price:29250000,cap:4.08,ppu:975000,psf:674.2,buyer:"Private HNW investor from Orange County",seller:"",notes:"Allocate 20% of the purchase price towards the retail.",lat:33.9980001,lng:-118.4214481},
+  {id:28,name:"Angelene Apartments",address:"915 N La Brea Ave",market:"Los Angeles",submarket:"West Hollywood",date:"2023-03-17",class:"A",units:179,yearBuilt:2016.0,yearBuiltRaw:2016,sf:156446,avgSF:874.0,price:112500000,cap:4.75,ppu:628491,psf:719.1,buyer:"Olympus",seller:"",notes:"The cap rate is a blended cap rate with apartments and retail. Approximately 33.5k sf of retail is included.",lat:34.0873062,lng:-118.344424},
+  {id:29,name:"The Vermont",address:"3150 Wilshire Blvd",market:"Los Angeles",submarket:"Los Angeles
+(Koreatown)",date:"2022-11-01",class:"A",units:464,yearBuilt:2014.0,yearBuiltRaw:2014,sf:null,avgSF:null,price:235000000,cap:null,ppu:506465,psf:null,buyer:"Harbor Group & Image",seller:"Capri Capital Partners & Tru America",notes:"",lat:34.0613794,lng:-118.2912663},
+  {id:30,name:"THEA at Metropolis",address:"889 Francisco St, Los Angeles",market:"Los Angeles",submarket:"Los Angeles
+(Downtown)",date:"2022-11-08",class:"A",units:684,yearBuilt:2020.0,yearBuiltRaw:2020,sf:709992,avgSF:1038.0,price:504000000,cap:4.1,ppu:736842,psf:709.87,buyer:"Northland",seller:"Greenland Holdings",notes:"Built as for-sale condos and converted to apartment homes. 85% leased at sale.",lat:34.0483407,lng:-118.2640555},
+  {id:31,name:"Avalon Studio",address:"4121 4041-4121 Radford Ave",market:"Los Angeles",submarket:"Studio City",date:"2022-09-30",class:"",units:149,yearBuilt:2009.0,yearBuiltRaw:2009,sf:119200,avgSF:800.0,price:76000000,cap:3.8,ppu:510067,psf:637.58,buyer:"Gelt, Inc.",seller:"AvalonBay",notes:"Value-Add. Spent additional $33.5k/unit for upgrades.",lat:34.1460239,lng:-118.3923722},
+  {id:32,name:"Vue Los Feliz",address:"1800 N New Hampshire Ave",market:"Los Angeles",submarket:"Los Angeles",date:"2022-07-01",class:"A",units:132,yearBuilt:1988.0,yearBuiltRaw:1988,sf:null,avgSF:null,price:64000000,cap:null,ppu:484848,psf:null,buyer:"Alliance Residential",seller:"",notes:"",lat:34.1036081,lng:-118.2932131},
+  {id:33,name:"Aliso Apartments",address:"950 E 3rd St",market:"Los Angeles",submarket:"Los Angeles
+(Arts District)",date:"2022-06-01",class:"A",units:472,yearBuilt:2019.0,yearBuiltRaw:2019,sf:null,avgSF:null,price:311000000,cap:null,ppu:658898,psf:null,buyer:"",seller:"",notes:"",lat:34.0459091,lng:-118.2340186},
+  {id:34,name:"The Bahay",address:"300 Westlake Ave",market:"Los Angeles",submarket:"Los Angeles
+(Filipinotown)",date:"2022-06-01",class:"A",units:200,yearBuilt:2020.0,yearBuiltRaw:2020,sf:180600,avgSF:903.0,price:137750000,cap:null,ppu:688750,psf:762.74,buyer:"Stockbridge Capital",seller:"",notes:"",lat:34.068718,lng:-118.267052},
+  {id:35,name:"The Eastway Apartments",address:"8740 La Tijera Blvd",market:"Los Angeles",submarket:"Los Angeles
+(Westchester)",date:"2022-05-12",class:"A",units:136,yearBuilt:2019.0,yearBuiltRaw:2019,sf:111248,avgSF:818.0,price:73255000,cap:null,ppu:538639,psf:658.48,buyer:"Zurich Alternative Asset Management",seller:"CIM Group",notes:"",lat:33.9575025,lng:-118.3939345},
+  {id:36,name:"The Laurel",address:"1267 N Laurel Ave",market:"Los Angeles",submarket:"West Hollywood",date:"2022-05-01",class:"A",units:23,yearBuilt:1958.0,yearBuiltRaw:1958,sf:18252,avgSF:793.0,price:36250000,cap:2.76,ppu:1576086,psf:1986.08,buyer:"",seller:"",notes:"",lat:34.0935179,lng:-118.3645332},
+  {id:37,name:"1221 Ocean Ave",address:"1221 Ocean Ave",market:"Los Angeles",submarket:"Santa Monica",date:"2022-04-01",class:"A",units:120,yearBuilt:1971.0,yearBuiltRaw:1971,sf:250864,avgSF:2090.0,price:330000000,cap:null,ppu:2750000,psf:1315.45,buyer:"",seller:"",notes:"",lat:34.0164466,lng:-118.5001065},
+  {id:38,name:"Elements",address:"616 616 Esplanade",market:"Los Angeles",submarket:"Redondo Beach",date:"2022-03-01",class:"A",units:105,yearBuilt:1971.0,yearBuiltRaw:1971,sf:81647,avgSF:777.0,price:74500000,cap:null,ppu:709523,psf:912.46,buyer:"Ray Pellegrino Trust",seller:"Ideal Capital Group",notes:"Sold after $25M of improvements",lat:33.8331585,lng:-118.3895722},
+  {id:39,name:"Village Lofts",address:"11024 Strathmore Dr",market:"Los Angeles",submarket:"Westwood",date:"2022-03-01",class:"A",units:31,yearBuilt:2015.0,yearBuiltRaw:2015,sf:33223,avgSF:1071.0,price:34400000,cap:null,ppu:1109677,psf:1035.43,buyer:"",seller:"",notes:"",lat:34.064367,lng:-118.450855},
+  {id:40,name:"Olivia Apartments",address:"801 S Olive St, Los Angeles",market:"Los Angeles",submarket:"Los Angeles",date:"2022-03-18",class:"A",units:45,yearBuilt:2021.0,yearBuiltRaw:2021,sf:57854,avgSF:1285.0,price:32100000,cap:3.5,ppu:713333,psf:554.84,buyer:"",seller:"",notes:"",lat:34.0450878,lng:-118.2571353},
+  {id:41,name:"Towne at Glendale (formerly Verdugo Village)",address:"1221 N Verdugo Rd, Glendale",market:"Los Angeles",submarket:"Glendale",date:"2022-03-30",class:"A",units:126,yearBuilt:1965.0,yearBuiltRaw:1965,sf:143136,avgSF:1136.0,price:79700000,cap:null,ppu:632539,psf:556.81,buyer:"CSCDA Community Improvement Authority & BLVD Impact Housing",seller:"Interstate Equities Corp",notes:"",lat:34.1639149,lng:-118.2334116},
+  {id:42,name:"Hanover West LA",address:"6711 S Sepulveda Blvd",market:"Los Angeles",submarket:"Los Angeles",date:"2022-03-28",class:"A",units:180,yearBuilt:2021.0,yearBuiltRaw:2021,sf:145800,avgSF:810.0,price:135000000,cap:3.1,ppu:750000,psf:925.93,buyer:"",seller:"",notes:"",lat:33.9726505,lng:-118.3947539},
+  {id:43,name:"The Crescent",address:"1274 N Crescent Heights Blvd",market:"Los Angeles",submarket:"West Hollywood",date:"2022-02-01",class:"A",units:130,yearBuilt:1985.0,yearBuiltRaw:1985,sf:127147,avgSF:774.0,price:100000000,cap:null,ppu:769230,psf:786.49,buyer:"Standard Communities, Faring & California Statewide Development Authority",seller:"",notes:"",lat:34.0937015,lng:-118.3658169},
+  {id:44,name:"442 Residences 442 W Ocean Blvd",address:"442 Residences 442 W Ocean Blvd",market:"Los Angeles",submarket:"Long Beach",date:"2022-02-01",class:"A",units:94,yearBuilt:2022.0,yearBuiltRaw:2022,sf:null,avgSF:null,price:48500000,cap:null,ppu:515957,psf:null,buyer:"MWest Holdings",seller:"Ensemble Real Estate Investments",notes:"",lat:33.767235,lng:-118.19736},
+  {id:45,name:"Broadstone Candara",address:"738 Wilcox Ave",market:"Los Angeles",submarket:"Hollywood",date:"2021-12-23",class:"A",units:103,yearBuilt:2014.0,yearBuiltRaw:2014,sf:null,avgSF:null,price:60100000,cap:null,ppu:583495,psf:null,buyer:"Fairfield",seller:"",notes:"",lat:34.0987,lng:-118.3306},
+  {id:46,name:"12530 Crenshaw Blvd",address:"12530 Crenshaw Blvd",market:"Los Angeles",submarket:"Hawthorne",date:"2021-12-01",class:"A",units:230,yearBuilt:2021.0,yearBuiltRaw:2021,sf:201783,avgSF:877.0,price:144000000,cap:null,ppu:626086,psf:713.64,buyer:"Standard Communities, Faring & California Statewide Development Authority",seller:"The Dinerstein Companies",notes:"",lat:33.9182058,lng:-118.3261509},
+  {id:47,name:"Empire Landing",address:"1901 N Buena Vista St",market:"Los Angeles",submarket:"Burbank",date:"2021-11-10",class:"A",units:276,yearBuilt:2010.0,yearBuiltRaw:2010,sf:null,avgSF:null,price:161000000,cap:2.75,ppu:583333,psf:null,buyer:"Clarion & City View",seller:"",notes:"",lat:34.189915,lng:-118.338357},
+  {id:48,name:"THEO",address:"289 N El Molino Ave",market:"Los Angeles",submarket:"Pasadena",date:"2021-11-04",class:"A",units:105,yearBuilt:2020.0,yearBuiltRaw:2020,sf:null,avgSF:null,price:67000000,cap:null,ppu:638095,psf:null,buyer:"Waterford Property Co. & California Statewide Community Development Authority",seller:"Summerhill Communities",notes:"",lat:34.150939,lng:-118.1370182},
+  {id:49,name:"301 Ocean Ave",address:"301 Ocean Ave",market:"Los Angeles",submarket:"Santa Monica",date:"2021-10-11",class:"",units:38,yearBuilt:1952.0,yearBuiltRaw:1952,sf:37989,avgSF:999.0,price:70000000,cap:null,ppu:1842105,psf:1842.64,buyer:"",seller:"Marquis Property Co.",notes:"",lat:34.0259173,lng:-118.5131922},
+  {id:50,name:"The Retreat",address:"22900 Oak Ridge Dr",market:"Los Angeles",submarket:"Santa Clarita",date:"2021-09-01",class:"",units:148,yearBuilt:1998.0,yearBuiltRaw:1998,sf:null,avgSF:null,price:54100000,cap:null,ppu:365540,psf:null,buyer:"MKB Ventures LP",seller:"Benedict Canyon Equities LEM Capital",notes:"",lat:34.3988696,lng:-118.5367426},
+  {id:51,name:"The Madison at Town Center",address:"24555 Town Center Dr",market:"Los Angeles",submarket:"Valencia",date:"2021-09-01",class:"",units:130,yearBuilt:2003.0,yearBuiltRaw:2003,sf:null,avgSF:null,price:62000000,cap:null,ppu:476923,psf:null,buyer:"Fairfield Residential",seller:"Gemdale USA Corporation",notes:"",lat:34.416485,lng:-118.56244},
+  {id:52,name:"Sienna Pointe Apartments",address:"12625 Frederick St, Moreno Valley",market:"Inland Empire",submarket:"Moreno Valley",date:"2021-08-01",class:"",units:120,yearBuilt:1971.0,yearBuiltRaw:1971,sf:null,avgSF:null,price:107200000,cap:null,ppu:893333,psf:null,buyer:"Tower 16 Capital Partners",seller:"",notes:"Plans to make nearly $10M in renovations incl. modernized unit upgrades, new clubhouses, gyms, updated pool areas, outdoor gaming areas",lat:33.9366805,lng:-117.2623457},
+  {id:53,name:"The Gallery",address:"1200 Artesia Blvd, Hermosa Beach",market:"Los Angeles",submarket:"Hermosa Beach",date:"2021-08-01",class:"",units:169,yearBuilt:1971.0,yearBuiltRaw:1971,sf:null,avgSF:null,price:112500000,cap:null,ppu:665680,psf:null,buyer:"Prime Group",seller:"Equity Residential",notes:"",lat:33.8725404,lng:-118.3924989},
+  {id:54,name:"Playa Pacific",address:"1140 Artesia Blvd, Hermosa Beach",market:"Los Angeles",submarket:"Hermosa Beach",date:"2021-08-01",class:"",units:285,yearBuilt:1972.0,yearBuiltRaw:1972,sf:null,avgSF:null,price:162500000,cap:null,ppu:570175,psf:null,buyer:"Prime Group",seller:"Equity Residential",notes:"",lat:33.8727414,lng:-118.3924844},
+  {id:55,name:"Elan Huntington Beach",address:"7400 Center Ave, Huntington Beach",market:"Orange County",submarket:"Huntington Beach",date:"",class:"A",units:274,yearBuilt:2015.0,yearBuiltRaw:2015,sf:null,avgSF:null,price:133986000,cap:4.2,ppu:489000,psf:null,buyer:"Catalyst Housing Group",seller:"",notes:"",lat:33.7332407,lng:-117.9995993},
+  {id:56,name:"Union South Bay",address:"615 E Carson St",market:"Los Angeles",submarket:"Carson",date:"2021-07-20",class:"A",units:357,yearBuilt:2020.0,yearBuiltRaw:2020,sf:null,avgSF:null,price:220000000,cap:null,ppu:616246,psf:null,buyer:"California Statewide Communities Development Authority & Standard Communities",seller:"",notes:"",lat:33.8316659,lng:-118.2654726},
+  {id:57,name:"Residences at Westgate",address:"168 W Green St",market:"Los Angeles",submarket:"Pasadena",date:"2021-06-15",class:"A",units:340,yearBuilt:2015.0,yearBuiltRaw:2015,sf:null,avgSF:null,price:237000000,cap:null,ppu:697058,psf:null,buyer:"Waterford Property Co. & California Statewide Communities",seller:"",notes:"To be converted to workforce housing",lat:34.1442617,lng:-118.1535854},
+  {id:58,name:"The Hudson",address:"678 E Walnut St",market:"Los Angeles",submarket:"Pasadena",date:"2021-06-15",class:"A",units:173,yearBuilt:2016.0,yearBuiltRaw:2016,sf:91078,avgSF:null,price:98100000,cap:null,ppu:567052,psf:1077.1,buyer:"Waterford Property Co. & California Statewide Communities",seller:"",notes:"To be converted to workforce housing",lat:34.1491753,lng:-118.1364652},
+  {id:59,name:"The Estelle",address:"1333 S Orange Grove Ave",market:"Los Angeles",submarket:"Mid City",date:"2021-05-12",class:"A",units:61,yearBuilt:2020.0,yearBuiltRaw:2020,sf:89887,avgSF:1473.0,price:55000000,cap:null,ppu:901639,psf:611.88,buyer:"The Green Cities Company",seller:"Canfield Development, Inc.",notes:"",lat:34.052545,lng:-118.3652416},
+  {id:60,name:"Altana Glendale",address:"633 N Central Ave",market:"Los Angeles",submarket:"Glendale",date:"2021-04-20",class:"A",units:507,yearBuilt:2017.0,yearBuiltRaw:2017,sf:null,avgSF:null,price:300000000,cap:null,ppu:591715,psf:null,buyer:"Waterford Property Co. & California Statewide Communities",seller:"",notes:"To be converted to workforce housing",lat:34.1549856,lng:-118.2580356},
+  {id:61,name:"Next on Lex",address:"275 W Lexington Dr",market:"Los Angeles",submarket:"Glendale",date:"2021-04-20",class:"A",units:494,yearBuilt:2019.0,yearBuiltRaw:2019,sf:null,avgSF:null,price:290000000,cap:null,ppu:587044,psf:null,buyer:"California Community Housing Agency",seller:"Cypress Equity",notes:"To be converted to workforce housing",lat:34.1520407,lng:-118.2576899},
+  {id:62,name:"Via at Sunset Plaza",address:"1124 Sherbourne Dr",market:"Los Angeles",submarket:"West Hollywood",date:"2021-04-07",class:"",units:23,yearBuilt:1958.0,yearBuiltRaw:1958,sf:25650,avgSF:1115.0,price:14000000,cap:3.32,ppu:608695,psf:545.81,buyer:"",seller:"",notes:"",lat:34.0566543,lng:-118.3792821},
+  {id:63,name:"318 W Wilson Ave",address:"318 W Wilson Ave",market:"Los Angeles",submarket:"Glendale",date:"2021-03-01",class:"A",units:164,yearBuilt:2020.0,yearBuiltRaw:2020,sf:144000,avgSF:785.0,price:90700000,cap:null,ppu:507012,psf:577.43,buyer:"JRK Property Holdings",seller:"Molasky Group",notes:"15k sf CVS on ground floor. Retail taken out at $500/sf.",lat:34.1479041,lng:-118.2581148},
+  {id:64,name:"Ocean Santa Monica",address:"901 Ocean Ave",market:"Los Angeles",submarket:"Santa Monica",date:"2021-02-19",class:"",units:28,yearBuilt:1961.0,yearBuiltRaw:1961,sf:30959,avgSF:1105.0,price:32600000,cap:3.72,ppu:1164285,psf:1053.0,buyer:"Coastline Real Estate Investments",seller:"American Alliance Property Management",notes:"",lat:34.020965,lng:-118.5054178},
+  {id:65,name:"Elm Apartments",address:"134 Elm Dr",market:"Los Angeles",submarket:"Beverly Hills",date:"2021-02-16",class:"",units:18,yearBuilt:1962.0,yearBuiltRaw:1962,sf:25152,avgSF:1397.0,price:12650000,cap:3.0,ppu:702777,psf:502.94,buyer:"",seller:"",notes:"",lat:34.065909,lng:-118.3947709},
+  {id:66,name:"Oakhurst Royal Apartments",address:"412 N Oakhurst Dr",market:"Los Angeles",submarket:"Beverly Hills",date:"2021-02-11",class:"",units:15,yearBuilt:1974.0,yearBuiltRaw:1974,sf:24294,avgSF:1619.0,price:10250000,cap:null,ppu:683333,psf:421.91,buyer:"",seller:"",notes:"",lat:34.0762978,lng:-118.3908515},
+  {id:67,name:"1835 Holmby Dr",address:"1835 Holmby Dr",market:"Los Angeles",submarket:"West Los Angeles",date:"2021-01-29",class:"",units:16,yearBuilt:1972.0,yearBuiltRaw:1972,sf:28704,avgSF:1794.0,price:13150000,cap:null,ppu:821875,psf:458.12,buyer:"",seller:"",notes:"",lat:34.0554253,lng:-118.4254715},
+  {id:68,name:"1500 S Granville",address:"1500 S Granville",market:"Los Angeles",submarket:"Los Angeles",date:"2020-12-23",class:"A",units:335,yearBuilt:2020.0,yearBuiltRaw:2020,sf:null,avgSF:null,price:281000000,cap:3.9,ppu:710000,psf:null,buyer:"",seller:"CIM Group",notes:"54k sf of retail. 3 Phases totaling 335 units. Retail taken out at $800psf",lat:34.016204,lng:-118.4354026},
+  {id:69,name:"Elmview Residences",address:"321-327 S Elm Dr",market:"Los Angeles",submarket:"Beverly Hills",date:"2020-12-03",class:"A",units:30,yearBuilt:2017.0,yearBuiltRaw:2017,sf:64911,avgSF:2163.0,price:35800000,cap:null,ppu:1193333,psf:551.52,buyer:"",seller:"",notes:"",lat:34.0614578,lng:-118.3949951},
+  {id:70,name:"Canyon Drive Manor Apartments",address:"1738 Canyon Dr",market:"Los Angeles",submarket:"Los Angeles",date:"2020-11-24",class:"",units:137,yearBuilt:1973.0,yearBuiltRaw:1973,sf:null,avgSF:null,price:111500000,cap:null,ppu:813868,psf:null,buyer:"Raintree Partners",seller:"Harry Root Trust",notes:"",lat:34.1028556,lng:-118.3165303},
+  {id:71,name:"8819 Harratt St",address:"8819 Harratt St",market:"Los Angeles",submarket:"West Hollywood",date:"2020-10-01",class:"",units:21,yearBuilt:1989.0,yearBuiltRaw:1989,sf:24673,avgSF:1174.0,price:11975000,cap:4.17,ppu:570238,psf:485.35,buyer:"",seller:"",notes:"",lat:34.0895177,lng:-118.3884813},
+  {id:72,name:"416 Broadway",address:"416 Broadway",market:"Los Angeles",submarket:"Glendale",date:"2020-10-01",class:"A",units:115,yearBuilt:2009.0,yearBuiltRaw:2009,sf:null,avgSF:null,price:60000000,cap:3.4,ppu:521739,psf:null,buyer:"Fairmont Management",seller:"Essex",notes:"",lat:34.1467438,lng:-118.2619311},
+  {id:73,name:"Avalon Venice on Rose",address:"1957 Lincoln Blvd, Venice",market:"Los Angeles",submarket:"Los Angeles (Venice)",date:"2020-09-08",class:"A",units:70,yearBuilt:2012.0,yearBuiltRaw:2012,sf:null,avgSF:null,price:65000000,cap:3.88,ppu:821920,psf:null,buyer:"TA Realty",seller:"AvalonBay",notes:"10% affordable units
+9,332 sf of retail (fully leased, no credit, all expiring in 2022)",lat:33.9957805,lng:-118.4565165},
+  {id:74,name:"El Palacio",address:"8491 Fountain Ave",market:"Los Angeles",submarket:"West Hollywood",date:"2020-08-14",class:"",units:18,yearBuilt:1931.0,yearBuiltRaw:1931,sf:21882,avgSF:1215.0,price:15750000,cap:3.8,ppu:875000,psf:719.77,buyer:"",seller:"Christina Development",notes:"",lat:34.0944256,lng:-118.3544799},
+  {id:75,name:"Village Pointe",address:"43612 Challenger Way",market:"Los Angeles",submarket:"Lancaster",date:"2020-08-01",class:"",units:210,yearBuilt:1983.0,yearBuiltRaw:1983,sf:null,avgSF:null,price:53000000,cap:null,ppu:252380,psf:null,buyer:"Community Preservation Partners; Affordable Housing Access",seller:"InSite Development; Housing Access Corp of America",notes:"",lat:34.6752676,lng:-118.1122943},
+  {id:76,name:"1346 N Laurel Ave",address:"1346 N Laurel Ave",market:"Los Angeles",submarket:"West Hollywood",date:"2020-07-16",class:"",units:16,yearBuilt:1961.0,yearBuiltRaw:1961,sf:17962,avgSF:1122.0,price:10100000,cap:3.54,ppu:631250,psf:562.3,buyer:"",seller:"",notes:"",lat:34.0954437,lng:-118.3643394},
+  {id:77,name:"Doheny Seasons",address:"147 S Doheny Dr",market:"Los Angeles",submarket:"Los Angeles",date:"2020-07-10",class:"A",units:21,yearBuilt:2007.0,yearBuiltRaw:2007,sf:25904,avgSF:1233.0,price:16500000,cap:3.64,ppu:785714,psf:636.97,buyer:"",seller:"",notes:"",lat:34.0657563,lng:-118.389773},
+  {id:78,name:"Wilshire Vermont Apartments",address:"3183 Wilshire Blvd",market:"Los Angeles",submarket:"Los Angeles (Koreatown)",date:"2020-06-24",class:"A",units:449,yearBuilt:2007.0,yearBuiltRaw:2007,sf:null,avgSF:null,price:132125000,cap:null,ppu:294265,psf:null,buyer:"Divco West",seller:"Hearthstone Housing, CALPERS",notes:"Recapitalized w/ buyer",lat:34.0620242,lng:-118.291101},
+  {id:79,name:"8225 Fountain Ave",address:"8225 Fountain Ave",market:"Los Angeles",submarket:"West Hollywood",date:"2020-06-01",class:"",units:7,yearBuilt:1926.0,yearBuiltRaw:1926,sf:9331,avgSF:1333.0,price:6840000,cap:4.39,ppu:977142,psf:733.0,buyer:"",seller:"",notes:"",lat:34.094439,lng:-118.3681445},
+  {id:80,name:"One Santa Fe",address:"300 S Santa Fe Ave",market:"Los Angeles",submarket:"Los Angeles (Arts District)",date:"2020-03-26",class:"A",units:438,yearBuilt:2015.0,yearBuiltRaw:2015,sf:null,avgSF:null,price:175500000,cap:null,ppu:400684,psf:null,buyer:"Public Sector Investment Board",seller:"Berkshire Hathaway",notes:"",lat:34.0451839,lng:-118.2324885},
+  {id:81,name:"Wakaba LA",address:"232 E 2nd St",market:"Los Angeles",submarket:"Los Angeles (Little Tokyo)",date:"2020-02-25",class:"A",units:240,yearBuilt:2016.0,yearBuiltRaw:2016,sf:null,avgSF:null,price:115750000,cap:null,ppu:482291,psf:null,buyer:"JP Morgan Chase",seller:"Sares Regis Group",notes:"",lat:33.7572215,lng:-118.1237088},
+  {id:82,name:"Golden West Tower",address:"3510 Maricopa St",market:"Los Angeles",submarket:"Torrance",date:"2020-02-06",class:"",units:180,yearBuilt:1973.0,yearBuiltRaw:1973,sf:null,avgSF:null,price:74160000,cap:null,ppu:412000,psf:null,buyer:"Community Preservation Partners; Jonathan Rose Companies",seller:"Affordable Housing Acces; Vitus Group",notes:"",lat:33.8394407,lng:-118.3477317},
+  {id:83,name:"1901-1903 Orchid Ave",address:"1901-1903 Orchid Ave",market:"Los Angeles",submarket:"Los Angeles",date:"2020-01-28",class:"",units:9,yearBuilt:1929.0,yearBuiltRaw:1929,sf:10573,avgSF:1174.0,price:12500000,cap:null,ppu:1388888,psf:1182.26,buyer:"Morgan Brown",seller:"John Padgett",notes:"",lat:34.1049521,lng:-118.3402719},
+  {id:84,name:"The Preston Miracle Mile Apartments",address:"630 Masselin Ave",market:"Los Angeles",submarket:"Los Angeles (Miracle Mile)",date:"2020-01-01",class:"",units:168,yearBuilt:1990.0,yearBuiltRaw:1990,sf:null,avgSF:null,price:86770000,cap:null,ppu:516488,psf:null,buyer:"Sares Regis Group",seller:"Heitman",notes:"",lat:34.0584102,lng:-118.3543281},
+  {id:85,name:"The Gardens at Wilshire Center",address:"710 S Serrano Ave, Los Angeles",market:"Los Angeles",submarket:"Los Angeles",date:"",class:"A",units:159,yearBuilt:2008.0,yearBuiltRaw:2008,sf:127492,avgSF:null,price:null,cap:null,ppu:null,psf:null,buyer:"Watermarke",seller:"Chandler / Amstar",notes:"",lat:34.0593837,lng:-118.3064843},
+  {id:86,name:"The Windward (FKA Cortland Windward Apartments)",address:"905 Lake Union Hill Way, Alpharetta, GA 30004",market:"Atlanta",submarket:"Alpharetta",date:"2025-12-15",class:"",units:294,yearBuilt:1987.0,yearBuiltRaw:1987,sf:null,avgSF:null,price:76500000,cap:null,ppu:260204,psf:null,buyer:"Post Investment Group",seller:"Cortland",notes:"",lat:34.082824957756,lng:-84.279461840797},
+  {id:87,name:"The Lights at Northwinds",address:"6000 Summit Place, Alpharetta, GA 30009",market:"Atlanta",submarket:"Alpharetta",date:"2025-12-15",class:"",units:140,yearBuilt:2021.0,yearBuiltRaw:2021,sf:null,avgSF:null,price:52650000,cap:null,ppu:376071,psf:null,buyer:"NAPA Property Manager",seller:"TA Realty",notes:"",lat:34.0712,lng:-84.2786},
+  {id:88,name:"The Lofts at Twenty25",address:"2025 Peachtree Rd NE, Atlanta, GA 30309",market:"Atlanta",submarket:"Atlanta",date:"2025-12-15",class:"",units:623,yearBuilt:1951.0,yearBuiltRaw:1951,sf:null,avgSF:null,price:90000000,cap:null,ppu:144462,psf:null,buyer:"Atlantica Properties",seller:"Harbor Group International",notes:"",lat:33.809335554864,lng:-84.391722061349},
+  {id:89,name:"Novo Sweetwater",address:"1521 Lee Rd, Lithia Springs, GA 30122",market:"Atlanta",submarket:"Lithia Springs",date:"2025-12-15",class:"",units:300,yearBuilt:2024.0,yearBuiltRaw:2024,sf:null,avgSF:null,price:61800000,cap:null,ppu:206000,psf:null,buyer:"ARC Capital Partners",seller:"Shelton McNally",notes:"",lat:33.762658033493,lng:-84.650933654887},
+  {id:90,name:"Notion",address:"125 N Arcadia Ave, Decatur, GA 30030",market:"Atlanta",submarket:"Decatur",date:"2025-12-15",class:"",units:290,yearBuilt:2022.0,yearBuiltRaw:2022,sf:null,avgSF:null,price:76050000,cap:null,ppu:262241,psf:null,buyer:"PGIM",seller:"Toll Brothers",notes:"",lat:33.776936972344,lng:-84.280430744521},
+  {id:91,name:"Magnolia at Milton (FKA IMT Deefield)",address:"13125 Morris Rd, Alpharetta, GA 30004",market:"Atlanta",submarket:"Alpharetta",date:"2025-12-15",class:"",units:635,yearBuilt:2001.0,yearBuiltRaw:2001,sf:null,avgSF:null,price:179718468,cap:null,ppu:283021,psf:null,buyer:"Olen Properties",seller:"IMT Residential",notes:"",lat:34.099036971611,lng:-84.25897227535},
+  {id:92,name:"Bell Kennesaw Mountain",address:"2504 Trees of Kennesaw Pkwy, Kennesaw, GA 30152",market:"Atlanta",submarket:"Kennesaw",date:"2025-12-15",class:"",units:450,yearBuilt:1999.0,yearBuiltRaw:1999,sf:null,avgSF:null,price:111600000,cap:null,ppu:248000,psf:null,buyer:"GID",seller:"Bell Partners",notes:"",lat:33.998879087508,lng:-84.602534841541},
+  {id:93,name:"Bell Rock Springs (FKA Rock Springs Village)",address:"550 Rock Springs Ct NE, Atlanta, GA 30306",market:"Atlanta",submarket:"Atlanta",date:"2025-11-15",class:"",units:558,yearBuilt:2005.0,yearBuiltRaw:2005,sf:null,avgSF:null,price:150000000,cap:null,ppu:268817,psf:null,buyer:"Bell Partners",seller:"Jamestown",notes:"",lat:33.7929640546,lng:-84.341721044131},
+  {id:94,name:"Treeline Ansley (FKA Gables Midtown)",address:"1925 Monroe Dr NE, Atlanta, GA 30324",market:"Atlanta",submarket:"Atlanta",date:"2025-11-15",class:"",units:346,yearBuilt:2009.0,yearBuiltRaw:2009,sf:null,avgSF:null,price:76000000,cap:null,ppu:219653,psf:null,buyer:"Shelton McNally / Carlyle",seller:"Gables Residential",notes:"",lat:33.807296591964,lng:-84.375438414412},
+  {id:95,name:"Elme Eagles Landing",address:"860 Rock Quarry Rd, Stockbridge, GA 30281",market:"Atlanta",submarket:"Stockbridge",date:"2025-11-15",class:"",units:490,yearBuilt:2000.0,yearBuiltRaw:2000,sf:null,avgSF:null,price:62501029,cap:null,ppu:127553,psf:null,buyer:"Cortland",seller:"Elme Communities",notes:"",lat:33.524200374173,lng:-84.230357544169},
+  {id:96,name:"Cortland Druid Hills (FKA Elme Druid Hills)",address:"2696 N Druid Hills Rd NE, Atlanta, GA 30329",market:"Atlanta",submarket:"Atlanta",date:"2025-11-15",class:"",units:500,yearBuilt:1987.0,yearBuiltRaw:1987,sf:null,avgSF:null,price:89547430,cap:null,ppu:179095,psf:null,buyer:"Cortland",seller:"Elme Communities",notes:"",lat:33.822335972632,lng:-84.316501116603},
+  {id:97,name:"Cortland on Cumberland (FKA Elme Cumberland)",address:"8 Cumberland Way SE, Smyrna, GA 30080",market:"Atlanta",submarket:"Smyrna",date:"2025-11-15",class:"",units:270,yearBuilt:1982.0,yearBuiltRaw:1982,sf:null,avgSF:null,price:44565070,cap:null,ppu:165056,psf:null,buyer:"Cortland",seller:"Elme Communities",notes:"",lat:33.881546049404,lng:-84.481091920999},
+  {id:98,name:"The Rocca",address:"3280 Northside Pkwy NW, Atlanta, GA 30327",market:"Atlanta",submarket:"Atlanta",date:"2025-11-15",class:"",units:314,yearBuilt:2002.0,yearBuiltRaw:2002,sf:null,avgSF:null,price:80000000,cap:null,ppu:254777,psf:null,buyer:"Penler / Crow Holdings",seller:"MetLife / Norges Bank",notes:"",lat:33.844248170236,lng:-84.425129363292},
+  {id:99,name:"Crestmark",address:"945 Crestmark Blvd, Lithia Springs, GA 30122",market:"Atlanta",submarket:"Lithia Springs",date:"2025-10-15",class:"",units:334,yearBuilt:1992.0,yearBuiltRaw:1992,sf:null,avgSF:null,price:60000000,cap:null,ppu:179641,psf:null,buyer:"Post Investment Group",seller:"Fogelman Properties / Thackary",notes:"",lat:33.781939155685,lng:-84.613209841731},
+  {id:100,name:"1105 Town Brookhaven",address:"1105 Town Blvd, Atlanta, GA 30319",market:"Atlanta",submarket:"Atlanta",date:"2025-10-15",class:"",units:299,yearBuilt:2014.0,yearBuiltRaw:2014,sf:null,avgSF:null,price:87000000,cap:null,ppu:290970,psf:null,buyer:"Mesirow",seller:"Wafra",notes:"",lat:33.871018182306,lng:-84.337910354893},
+  {id:101,name:"Timberline View (FKA Town Laurel Crossing)",address:"1520 Laurel Crossing Pkwy NE, Buford, GA 30519",market:"Atlanta",submarket:"Buford",date:"2025-09-15",class:"",units:360,yearBuilt:2023.0,yearBuiltRaw:2023,sf:null,avgSF:null,price:110000000,cap:null,ppu:305556,psf:null,buyer:"GSL Properties / DBG Properties",seller:"Related / Rockpoint",notes:"",lat:34.049765080375,lng:-83.990914911536},
+  {id:102,name:"The Row at Barrett (Part of Portfolio)",address:"2650 Cobb Place Ln NW, Kennesaw, GA 30144",market:"Atlanta",submarket:"Kennesaw",date:"2025-09-15",class:"",units:347,yearBuilt:2024.0,yearBuiltRaw:2024,sf:null,avgSF:null,price:106000000,cap:null,ppu:305476,psf:null,buyer:"GSL Properties / DBG Properties",seller:"Related / Rockpoint",notes:"",lat:34.013614935201,lng:-84.572433548389},
+  {id:103,name:"Eleven85",address:"1185 Collier Rd NW, Atlanta, GA 30318",market:"Atlanta",submarket:"Atlanta",date:"2025-09-15",class:"",units:288,yearBuilt:2014.0,yearBuiltRaw:2014,sf:null,avgSF:null,price:67000000,cap:null,ppu:232639,psf:null,buyer:"Penler / Crow Holdings",seller:"TerraCap",notes:"",lat:33.813205479189,lng:-84.423218886754},
+  {id:104,name:"Millworks",address:"1888 Emery St NW, Atlanta, GA 30318",market:"Atlanta",submarket:"Atlanta",date:"2025-08-15",class:"",units:345,yearBuilt:2017.0,yearBuiltRaw:2017,sf:null,avgSF:null,price:78000000,cap:null,ppu:226087,psf:null,buyer:"Nuveen",seller:"Continental",notes:"",lat:33.807228832991,lng:-84.414402537594},
+  {id:105,name:"The Cove at Covington Town Center (Recap)",address:"12301 Town Center Blvd, Covington, GA 30014",market:"Atlanta",submarket:"Covington",date:"2025-08-15",class:"",units:350,yearBuilt:2022.0,yearBuiltRaw:2022,sf:null,avgSF:null,price:72500000,cap:null,ppu:207143,psf:null,buyer:"Monument Square/7Acre/Benson Capital",seller:"Monument Square/Landmark/ACRE",notes:"",lat:33.623291691553,lng:-83.847189263638},
+  {id:106,name:"The Vivian",address:"1246 Allene Ave SW, Atlanta, GA 30310",market:"Atlanta",submarket:"Atlanta",date:"2025-08-15",class:"",units:325,yearBuilt:2023.0,yearBuiltRaw:2023,sf:null,avgSF:null,price:81250000,cap:null,ppu:250000,psf:null,buyer:"JW Capital",seller:"RangeWater / Park Property Capital",notes:"",lat:33.72029618364,lng:-84.412789092128},
+  {id:107,name:"The Quinn at Perimeter",address:"8 Perimeter Center E, Atlanta, GA 30346",market:"Atlanta",submarket:"Atlanta",date:"2025-08-15",class:"",units:312,yearBuilt:2009.0,yearBuiltRaw:2009,sf:null,avgSF:null,price:77000000,cap:null,ppu:246795,psf:null,buyer:"McDowell Properties",seller:"CWS Capital Partners",notes:"",lat:33.926374287383,lng:-84.336487414845},
+  {id:108,name:"Trace Midtown",address:"782 Peachtree St NE, Atlanta, GA 30308",market:"Atlanta",submarket:"Atlanta",date:"2025-08-15",class:"",units:290,yearBuilt:2016.0,yearBuiltRaw:2016,sf:null,avgSF:null,price:94300000,cap:null,ppu:325172,psf:null,buyer:"Penler / Crow Holdings",seller:"Flow (Adam Neumann)",notes:"",lat:33.7757816951,lng:-84.384635750048},
+  {id:109,name:"Oaks at Sugarloaf (FKA Cortland Sugarloaf)",address:"5375 Sugarloaf Pkwy, Lawrenceville, GA 30043",market:"Atlanta",submarket:"Lawrenceville",date:"2025-07-15",class:"",units:406,yearBuilt:2001.0,yearBuiltRaw:2001,sf:null,avgSF:null,price:92600000,cap:null,ppu:228079,psf:null,buyer:"PHH",seller:"Cortland",notes:"",lat:33.967048844413,lng:-84.0707125163},
+  {id:110,name:"Eden at Lakeview",address:"4115 Lake St, Alpharetta, GA 30009",market:"Atlanta",submarket:"Alpharetta",date:"2025-07-15",class:"",units:255,yearBuilt:2024.0,yearBuiltRaw:2024,sf:null,avgSF:null,price:112500000,cap:null,ppu:441176,psf:null,buyer:"Ares",seller:"Highpoint / Longwharf",notes:"",lat:34.0728,lng:-84.2941},
+  {id:111,name:"The Jade at Avondale",address:"2740 E College Ave, Decatur, GA 30030",market:"Atlanta",submarket:"Decatur",date:"2025-07-15",class:"",units:270,yearBuilt:2020.0,yearBuiltRaw:2020,sf:null,avgSF:null,price:72200000,cap:null,ppu:267407,psf:null,buyer:"PHH",seller:"Bellevue Living / Hughes Capital Partners",notes:"",lat:33.774968462461,lng:-84.277733801395},
+  {id:112,name:"The Park at the Hill",address:"5385 Peachtree Dunwoody Rd, Atlanta, GA 30342",market:"Atlanta",submarket:"Atlanta",date:"2025-07-15",class:"",units:296,yearBuilt:1996.0,yearBuiltRaw:1996,sf:null,avgSF:null,price:69500000,cap:null,ppu:234797,psf:null,buyer:"Clark Ventures",seller:"Benefit Street",notes:"",lat:33.90135851014,lng:-84.353263902104},
+  {id:113,name:"Skye Suwanee Town Center",address:"500 Buford Hwy, Suwanee, GA 30024",market:"Atlanta",submarket:"Suwanee",date:"2025-06-15",class:"",units:233,yearBuilt:2020.0,yearBuiltRaw:2020,sf:null,avgSF:null,price:64750000,cap:null,ppu:277897,psf:null,buyer:"Sherman Residential",seller:"Barings",notes:"",lat:34.053515101561,lng:-84.068643822356},
+  {id:114,name:"Connect Decatur",address:"2641 E College Ave, Decatur, GA 30030",market:"Atlanta",submarket:"Decatur",date:"2025-06-15",class:"",units:378,yearBuilt:2019.0,yearBuiltRaw:2019,sf:null,avgSF:null,price:90500000,cap:null,ppu:239418,psf:null,buyer:"Cortland",seller:"Spyglass Capital Partners",notes:"",lat:33.774739279481,lng:-84.279896901324},
+  {id:115,name:"Summit Crossing I (Part of Portfolio)",address:"3920 Ivy Summit Ct, Cumming, GA 30041",market:"Atlanta",submarket:"Cumming",date:"2025-06-15",class:"",units:345,yearBuilt:2007.0,yearBuiltRaw:2007,sf:null,avgSF:null,price:90000000,cap:null,ppu:260870,psf:null,buyer:"Equity Residential",seller:"Blackstone",notes:"",lat:34.142669423673,lng:-84.192465136578},
+  {id:116,name:"The Falls at Forsyth (Part of Portfolio)",address:"5310 Falls Dr, Cumming, GA 30028",market:"Atlanta",submarket:"Cumming",date:"2025-06-15",class:"",units:356,yearBuilt:2018.0,yearBuiltRaw:2018,sf:null,avgSF:null,price:102000000,cap:null,ppu:286517,psf:null,buyer:"Equity Residential",seller:"Blackstone",notes:"",lat:34.299425437866,lng:-84.073662517545},
+  {id:117,name:"Cortland Lex (Part of Portfolio)",address:"1000 Lexington Farms Dr, Alpharetta, GA 30004",market:"Atlanta",submarket:"Alpharetta",date:"2025-06-15",class:"",units:360,yearBuilt:1995.0,yearBuiltRaw:1995,sf:null,avgSF:null,price:106000000,cap:null,ppu:294444,psf:null,buyer:"Equity Residential",seller:"Blackstone",notes:"",lat:34.0822,lng:-84.3024},
+  {id:118,name:"Cortland Buckhead (Recap)",address:"3005 Peachtree Rd NE, Atlanta, GA 30305",market:"Atlanta",submarket:"Atlanta",date:"2025-06-15",class:"",units:399,yearBuilt:2019.0,yearBuiltRaw:2019,sf:null,avgSF:null,price:150000000,cap:null,ppu:375940,psf:null,buyer:"Cortland",seller:"Flow",notes:"",lat:33.836003018637,lng:-84.381764619154},
+  {id:120,name:"Heights at Shadowood",address:"2180 Shadowood Pkwy SE, Atlanta, GA 30339",market:"Atlanta",submarket:"Atlanta",date:"2025-05-15",class:"",units:287,yearBuilt:2023.0,yearBuiltRaw:2023,sf:null,avgSF:null,price:87535000,cap:null,ppu:305000,psf:null,buyer:"RPM / Marcus Partners",seller:"WSE Development LLC",notes:"",lat:33.897680438794,lng:-84.45410304102},
+  {id:121,name:"Marquis Midtown District",address:"415 Armour Dr NE, Atlanta, GA 30324",market:"Atlanta",submarket:"Atlanta",date:"2025-04-15",class:"",units:372,yearBuilt:2008.0,yearBuiltRaw:2008,sf:null,avgSF:null,price:71250000,cap:null,ppu:191532,psf:null,buyer:"Cortland",seller:"CWS Capital Partners",notes:"",lat:33.81263036544,lng:-84.373857412614},
+  {id:122,name:"Block Lofts",address:"747 Ralph McGill Blvd NE, Atlanta, GA 30312",market:"Atlanta",submarket:"Atlanta",date:"2025-03-15",class:"",units:244,yearBuilt:2005.0,yearBuiltRaw:2005,sf:null,avgSF:null,price:69500000,cap:null,ppu:284836,psf:null,buyer:"Ares",seller:"Carter-Haston",notes:"",lat:33.766743351914,lng:-84.362690623574},
+  {id:123,name:"Grande Oaks",address:"100 Legacy Oaks Cir, Roswell, GA 30076",market:"Atlanta",submarket:"Roswell",date:"2025-03-15",class:"",units:270,yearBuilt:1996.0,yearBuiltRaw:1996,sf:null,avgSF:null,price:61921806,cap:null,ppu:229340,psf:null,buyer:"McCann Realty/Sagard Real Estate",seller:"SREIT Grande Oaks/Strata Equity Group/Lone Star",notes:"",lat:34.037716461744,lng:-84.335745482577},
+  {id:124,name:"Inman Quarter (Recap)",address:"299 N Highland Ave NE, Atlanta, GA 30307",market:"Atlanta",submarket:"Atlanta",date:"2025-03-15",class:"",units:200,yearBuilt:2015.0,yearBuiltRaw:2015,sf:null,avgSF:null,price:97060741,cap:null,ppu:485304,psf:null,buyer:"Jamestown",seller:"TriBridge",notes:"",lat:33.762865127718,lng:-84.358072547546},
+  {id:125,name:"Avana TownPark",address:"3725 George Busbee Pkwy NW, Kennesaw, GA 30144",market:"Atlanta",submarket:"Kennesaw",date:"2025-02-15",class:"",units:300,yearBuilt:1996.0,yearBuiltRaw:1996,sf:null,avgSF:null,price:60750000,cap:null,ppu:202500,psf:null,buyer:"Greystar",seller:"Starwood Real Estate Income Trust, Inc.",notes:"",lat:34.039355319091,lng:-84.573970130675},
+  {id:126,name:"Columbia Square Living",address:"1550 N El Centro Ave, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2026-04-15",class:"",units:200,yearBuilt:2016.0,yearBuiltRaw:2016,sf:203800,avgSF:1019.0,price:99000000,cap:5.12,ppu:495000,psf:486.0,buyer:"Advanced Real Estate",seller:"Kilroy",notes:"",lat:34.098929226459,lng:-118.323656778851},
+  {id:127,name:"Jardine",address:"6390 De Longpre Ave, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2026-04-15",class:"",units:193,yearBuilt:2021.0,yearBuiltRaw:2021,sf:168875,avgSF:875.0,price:103000000,cap:4.45,ppu:533679,psf:610.0,buyer:"Advanced Real Estate",seller:"Kilroy",notes:"",lat:34.096113848277,lng:-118.328567938113},
+  {id:128,name:"San Regis",address:"15454 Sherman Way, Van Nuys, CA 91406",market:"Los Angeles",submarket:"Van Nuys",date:"2026-04-15",class:"",units:390,yearBuilt:1969.0,yearBuiltRaw:1969,sf:265200,avgSF:680.0,price:69000000,cap:null,ppu:176923,psf:260.0,buyer:"Post Investment Group",seller:"Nuveen",notes:"",lat:34.201006317482,lng:-118.469550760461},
+  {id:129,name:"Metro Mission Valley",address:"5080 Camino Del Arroyo, San Diego, CA 92108",market:"San Diego",submarket:"Mission Valley",date:"2026-04-15",class:"",units:305,yearBuilt:2018.0,yearBuiltRaw:2018,sf:265960,avgSF:787.0,price:148500000,cap:4.8,ppu:486885,psf:558.0,buyer:"GID",seller:"R&V Management",notes:"",lat:32.766493725593,lng:-117.158286474591},
+  {id:130,name:"Twin Towers Apartments",address:"15909 Vermont Ave, Paramount, CA 90723",market:"Los Angeles",submarket:"Paramount",date:"2026-04-15",class:"",units:153,yearBuilt:1987.0,yearBuiltRaw:1987,sf:115362,avgSF:754.0,price:40000000,cap:5.81,ppu:261438,psf:347.0,buyer:"",seller:"Coastline Real Estate Investment",notes:"Renovated 2001",lat:33.889048934964,lng:-118.162802860735},
+  {id:131,name:"Rollingwood Apartments",address:"1901 E Amar Rd, West Covina, CA 91792",market:"Los Angeles",submarket:"West Covina",date:"2026-04-15",class:"",units:169,yearBuilt:1978.0,yearBuiltRaw:1978,sf:139932,avgSF:828.0,price:48430000,cap:null,ppu:286568,psf:346.0,buyer:"",seller:"Harris Taylor",notes:"",lat:34.0277126,lng:-117.9049725},
+  {id:132,name:"Axiom Westwood",address:"415 Gayley Ave, Los Angeles, CA 90024",market:"Los Angeles",submarket:"Westwood",date:"2026-04-15",class:"",units:153,yearBuilt:1962.0,yearBuiltRaw:1962,sf:110619,avgSF:723.0,price:62600000,cap:null,ppu:409150,psf:566.0,buyer:"Linda L & Jason Roostaeian",seller:"Raintree",notes:"",lat:34.070288427669,lng:-118.454440621979},
+  {id:133,name:"Kendall Brook",address:"1200 Kendall Dr, San Bernardino, CA 92407",market:"Inland Empire",submarket:"San Bernardino",date:"2026-04-15",class:"",units:113,yearBuilt:1986.0,yearBuiltRaw:1986,sf:80230,avgSF:710.0,price:17200000,cap:null,ppu:152212,psf:274.0,buyer:"Spring Property Group",seller:"Sheila Young",notes:"Cap rate noted as \"Mid 6% Stab.\"",lat:34.166575213558,lng:-117.310338398443},
+  {id:134,name:"Chelsea Apartments",address:"1318 2nd St, Santa Monica, CA 90401",market:"Los Angeles",submarket:"Santa Monica",date:"2026-03-15",class:"",units:53,yearBuilt:2016.0,yearBuiltRaw:2016,sf:39450,avgSF:631.0,price:33100000,cap:5.53,ppu:624528,psf:839.0367553865652,buyer:"1031 Private Investor",seller:"Kort Scott",notes:"",lat:34.015905741245,lng:-118.498353439997},
+  {id:135,name:"Allure at Camarillo",address:"390 Paseo Camarillo, Camarillo, CA 93010",market:"Ventura County",submarket:"Camarillo",date:"2026-03-15",class:"",units:165,yearBuilt:2003.0,yearBuiltRaw:2003,sf:145200,avgSF:880.0,price:69500000,cap:4.7,ppu:421212,psf:479.0,buyer:"Jackson Square Properties",seller:"Nuveen",notes:"",lat:34.220946783028,lng:-119.063628302387},
+  {id:136,name:"The Hawthorne",address:"9174 Indiana Ave, Riverside, CA 92503",market:"Inland Empire",submarket:"Riverside",date:"2026-03-15",class:"",units:184,yearBuilt:2023.0,yearBuiltRaw:2023,sf:160632,avgSF:873.0,price:65250000,cap:4.7,ppu:354620,psf:406.0,buyer:"Alliance | PCCP",seller:"Carlyle/Brandywine",notes:"",lat:33.916890488774,lng:-117.436473871097},
+  {id:137,name:"Shift",address:"1501 Island Ave, San Diego, CA 92101",market:"San Diego",submarket:"East Village",date:"2026-02-15",class:"",units:368,yearBuilt:2018.0,yearBuiltRaw:2018,sf:333408,avgSF:906.0,price:134400000,cap:4.78,ppu:365217,psf:403.0,buyer:"MG | Canyon Equity Partners",seller:"Quarterra/Lennar",notes:"",lat:32.710383943532,lng:-117.150287506517},
+  {id:138,name:"Resort at Encinitas",address:"1320 Via Terrassa, Encinitas, CA 92024",market:"San Diego",submarket:"Encinitas",date:"2026-02-15",class:"",units:198,yearBuilt:1986.0,yearBuiltRaw:1986,sf:203544,avgSF:1028.0,price:110000000,cap:4.9,ppu:555556,psf:540.0,buyer:"Fairfield",seller:"Interstate Equities",notes:"",lat:33.047979798244,lng:-117.264518830974},
+  {id:139,name:"Sunrise Fountains",address:"2104 S Lewis St, Anaheim, CA 92802",market:"Orange County",submarket:"Anaheim",date:"2026-02-15",class:"",units:132,yearBuilt:1989.0,yearBuiltRaw:1989,sf:105600,avgSF:800.0,price:42750000,cap:4.3,ppu:323864,psf:405.0,buyer:"Benedict Canyon Equities",seller:"Consensys",notes:"",lat:33.796033378931,lng:-117.897628913795},
+  {id:140,name:"Tempo at Riverpark",address:"450 Forest Park Blvd, Oxnard, CA 93036",market:"Ventura County",submarket:"Oxnard",date:"2026-01-15",class:"",units:235,yearBuilt:2016.0,yearBuiltRaw:2016,sf:224425,avgSF:955.0,price:105000000,cap:4.7,ppu:446809,psf:468.0,buyer:"Hines",seller:"Bascom Group",notes:"",lat:34.242024876055,lng:-119.173458410559},
+  {id:142,name:"717 Olympic",address:"717 W Olympic Blvd, Los Angeles, CA 90015",market:"Los Angeles",submarket:"DTLA",date:"2025-12-15",class:"",units:151,yearBuilt:2008.0,yearBuiltRaw:2008,sf:157342,avgSF:1042.0,price:68800000,cap:3.83,ppu:455629,psf:437.0,buyer:"APW Avenue Capital",seller:"Metlife Investment Management",notes:"",lat:34.044555606442,lng:-118.262965450564},
+  {id:143,name:"Presidio at Rancho Del Oro",address:"4401 Mission Ave, Oceanside, CA 92057",market:"San Diego",submarket:"Oceanside",date:"2025-12-15",class:"",units:264,yearBuilt:1987.0,yearBuiltRaw:1987,sf:243672,avgSF:923.0,price:102500000,cap:5.25,ppu:388258,psf:421.0,buyer:"Prime Residential",seller:"TruAmerica | Allstate | Eagle Realty",notes:"",lat:33.229260343089,lng:-117.305390754819},
+  {id:144,name:"Grffis Platinum Triangle",address:"1912 S Jacaranda St, Anaheim, CA 92805",market:"Orange County",submarket:"Anaheim",date:"2025-12-15",class:"",units:332,yearBuilt:2019.0,yearBuiltRaw:2019,sf:300792,avgSF:906.0,price:152950000,cap:4.57,ppu:460693,psf:508.0,buyer:"Griffis Residential",seller:"MORE | Stockbridge",notes:"",lat:33.7987348,lng:-117.8899916},
+  {id:145,name:"Sorrel at Warner Center",address:"21021 Erwin St, Woodland Hills, CA 91367",market:"Los Angeles",submarket:"Warner Center",date:"2025-12-15",class:"",units:395,yearBuilt:2015.0,yearBuiltRaw:2015,sf:422255,avgSF:1069.0,price:156300000,cap:4.8,ppu:395696,psf:370.0,buyer:"Waterton",seller:"Intercontinental/TruAmerica",notes:"",lat:34.182838554839,lng:-118.590847668074},
+  {id:146,name:"Lumia",address:"850 N Azusa Ave, Azusa, CA 91702",market:"Los Angeles",submarket:"Azusa",date:"2025-12-15",class:"",units:127,yearBuilt:2024.0,yearBuiltRaw:2024,sf:110109,avgSF:867.0,price:53000000,cap:null,ppu:417323,psf:481.0,buyer:"Battaglia Inc.",seller:"Serrano Development Group",notes:"Cap rate noted as \"Mid-4%\"",lat:34.136351901914,lng:-117.907433222741},
+  {id:147,name:"4252 Crenshaw",address:"4252 Crenshaw Blvd, Los Angeles, CA 90008",market:"Los Angeles",submarket:"Leimert Park",date:"2025-12-15",class:"",units:111,yearBuilt:2020.0,yearBuiltRaw:2020,sf:39294,avgSF:354.0,price:34300000,cap:null,ppu:309009,psf:873.0,buyer:"Foundation Permenent Housing Fund",seller:"Magnum Real Estate Group",notes:"",lat:34.006759797542,lng:-118.33462743475},
+  {id:148,name:"SM Hollywood Studios",address:"1717 N Highland Ave, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2025-12-15",class:"",units:177,yearBuilt:1927.0,yearBuiltRaw:1927,sf:45135,avgSF:255.0,price:18550000,cap:6.17,ppu:104802,psf:411.0,buyer:"SM Hollywood Studios LLC",seller:"Langdon Park Capital",notes:"",lat:34.103329732887,lng:-118.338770987945},
+  {id:149,name:"Hills at Hacienda Heights",address:"2401 S Hacienda Blvd, Hacienda Heights, CA 91745",market:"Los Angeles",submarket:"San Gabriel Valley",date:"2025-11-15",class:"",units:350,yearBuilt:1971.0,yearBuiltRaw:1971,sf:322000,avgSF:920.0,price:107000000,cap:null,ppu:305714,psf:332.0,buyer:"Eagle Real Estate | Red Stone",seller:"MG Properties",notes:"Renovated 2012",lat:33.992033109263,lng:-117.968807449261},
+  {id:150,name:"Springbrook Park Apartments",address:"1100 N Orange St, Riverside, CA 92501",market:"Inland Empire",submarket:"Northside",date:"2025-10-15",class:"",units:120,yearBuilt:1971.0,yearBuiltRaw:1971,sf:114720,avgSF:956.0,price:27300000,cap:4.95,ppu:227500,psf:238.0,buyer:"Stanley Ning",seller:"Nancy Steinberg",notes:"",lat:34.006556837212,lng:-117.356294513685},
+  {id:151,name:"The View",address:"3460 W 7th St, Los Angeles, CA 90005",market:"Los Angeles",submarket:"Koreatown",date:"2025-10-15",class:"",units:168,yearBuilt:1965.0,yearBuiltRaw:1965,sf:147000,avgSF:875.0,price:52075000,cap:5.8,ppu:309970,psf:354.0,buyer:"Concord Capital",seller:"BGO, MWest",notes:"Renovated 2013",lat:34.059654850799,lng:-118.302254458069},
+  {id:152,name:"Eleve Lofts",address:"200 E Broadway, Glendale, CA 91205",market:"Los Angeles",submarket:"Glendale",date:"2025-10-15",class:"",units:208,yearBuilt:2013.0,yearBuiltRaw:2013,sf:113984,avgSF:548.0,price:76000000,cap:5.1,ppu:365385,psf:667.0,buyer:"Confidential",seller:"EQR",notes:"",lat:34.146237041214,lng:-118.253728509892},
+  {id:153,name:"The Cove at West Covina",address:"1829 E Workman Ave, West Covina, CA 91791",market:"Los Angeles",submarket:"Covina",date:"2025-10-15",class:"",units:138,yearBuilt:1962.0,yearBuiltRaw:1962,sf:129996,avgSF:942.0,price:41000000,cap:5.35,ppu:297101,psf:315.0,buyer:"Advanced Real Estate",seller:"Langdon Park Capital",notes:"",lat:34.075555418032,lng:-117.906534919944},
+  {id:154,name:"El Centro (Leasehold)",address:"6200 Hollywood Blvd, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2025-10-15",class:"",units:507,yearBuilt:2018.0,yearBuiltRaw:2018,sf:411684,avgSF:812.0,price:155575000,cap:null,ppu:306854,psf:378.0,buyer:"Big4 Properties | Madison Intl.",seller:"DLJ Real Estate",notes:"Cap rate noted as \"Mid-5%\"",lat:34.101575580763,lng:-118.325242424715},
+  {id:155,name:"Azusa Gardens",address:"601 E 8th St, Azusa, CA 91702",market:"Los Angeles",submarket:"Azusa",date:"2025-10-15",class:"",units:112,yearBuilt:1987.0,yearBuiltRaw:1987,sf:105840,avgSF:945.0,price:29300000,cap:5.0,ppu:261607,psf:277.0,buyer:"TriWest Development",seller:"Choe Family Trust",notes:"",lat:34.135434202785,lng:-117.900721876824},
+  {id:156,name:"Las Positas",address:"352 Townsite Promenade, Camarillo, CA 93010",market:"Ventura County",submarket:"Camarillo",date:"2025-10-15",class:"",units:213,yearBuilt:2019.0,yearBuiltRaw:2019,sf:215343,avgSF:1011.0,price:109875000,cap:4.43,ppu:515845,psf:510.0,buyer:"AMLI Residential",seller:"MG Properties",notes:"",lat:34.221746248905,lng:-119.080246793472},
+  {id:157,name:"Sofi at Topanga Canyon",address:"9733 Topanga Canyon Blvd, Chatsworth, CA 91311",market:"Los Angeles",submarket:"Chatsworth",date:"2025-10-15",class:"",units:119,yearBuilt:2009.0,yearBuiltRaw:2009,sf:125783,avgSF:1057.0,price:44000000,cap:null,ppu:369748,psf:350.0,buyer:"Amoroso Companies",seller:"Pacific Urban Investors",notes:"Cap rate noted as \"High-4%\"",lat:34.24799538711,lng:-118.60639734912},
+  {id:158,name:"The Parker Apartments",address:"4640 Arden Way, El Monte, CA 91731",market:"Los Angeles",submarket:"El Monte",date:"2025-10-15",class:"",units:177,yearBuilt:1963.0,yearBuiltRaw:1963,sf:112218,avgSF:634.0,price:46675000,cap:null,ppu:263701,psf:416.0,buyer:"Belveron Partners",seller:"Uhon, Inc.",notes:"Renovated 2018; Cap rate noted as \"High-5%\"",lat:34.089948726931,lng:-118.041748473901},
+  {id:159,name:"Runway Living",address:"12760 W Millennium Dr, Playa Vista, CA 90094",market:"Los Angeles",submarket:"Playa Vista",date:"2025-09-15",class:"",units:420,yearBuilt:2015.0,yearBuiltRaw:2015,sf:384720,avgSF:916.0,price:268700000,cap:4.62,ppu:639762,psf:698.0,buyer:"Hines",seller:"Invesco | NPS",notes:"",lat:33.97572401825,lng:-118.416753236742},
+  {id:160,name:"Emerald South Park",address:"215 W 14th St, Los Angeles, CA 90015",market:"Los Angeles",submarket:"DTLA",date:"2025-09-15",class:"",units:154,yearBuilt:2023.0,yearBuiltRaw:2023,sf:111342,avgSF:723.0,price:50500000,cap:5.4,ppu:327922,psf:454.0,buyer:"HACLA",seller:"JADE Enterprises",notes:"",lat:34.036226976831,lng:-118.263548718134},
+  {id:161,name:"Rise Hollywood",address:"1331 N Cahuenga Blvd, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2025-09-15",class:"",units:369,yearBuilt:2021.0,yearBuiltRaw:2021,sf:283023,avgSF:767.0,price:159000000,cap:null,ppu:430894,psf:562.0,buyer:"AEW",seller:"Encore | Blackstone",notes:"Cap rate noted as \"Low-5%\"",lat:34.095262398994,lng:-118.328926642252},
+  {id:162,name:"The Square Apartments",address:"12535 Brookshire Ave, Downey, CA 90242",market:"Los Angeles",submarket:"Downey",date:"2025-09-15",class:"",units:112,yearBuilt:1965.0,yearBuiltRaw:1965,sf:114688,avgSF:1024.0,price:37600000,cap:null,ppu:335714,psf:328.0,buyer:"The Bascom Group",seller:"B.A.G. Investments, Inc",notes:"Renovated 2003",lat:33.921059142614,lng:-118.142903311612},
+  {id:163,name:"University Village (Student Housing Conversion)",address:"901 E Alosta Ave, Azusa, CA 91702",market:"Los Angeles",submarket:"Azusa",date:"2025-09-15",class:"",units:320,yearBuilt:1985.0,yearBuiltRaw:1985,sf:249600,avgSF:780.0,price:91750000,cap:null,ppu:286719,psf:368.0,buyer:"Legacy/PGIM",seller:"Azusa Pacific University",notes:"Cap rate noted as \"Mid-5%\"",lat:34.128826411044,lng:-117.888227650264},
+  {id:164,name:"Canyon Villa Apartments",address:"601 Telegraph Canyon Rd, Chula Vista, CA 91910",market:"San Diego",submarket:"Chula Vista",date:"2025-09-15",class:"",units:183,yearBuilt:1981.0,yearBuiltRaw:1981,sf:178974,avgSF:978.0,price:73750000,cap:4.5,ppu:403005,psf:412.0,buyer:"Post Investment Group",seller:"MG Properties",notes:"",lat:32.627995334347,lng:-117.036626192988},
+  {id:165,name:"Esplanade (Leasehold)",address:"11711 Collett Ave, Riverside, CA 92505",market:"Inland Empire",submarket:"Riverside",date:"2025-09-15",class:"",units:588,yearBuilt:2004.0,yearBuiltRaw:2004,sf:547428,avgSF:931.0,price:166500000,cap:5.3,ppu:283163,psf:304.0,buyer:"Abacus",seller:"Sequoia",notes:"",lat:33.906027608203,lng:-117.494252068185},
+  {id:166,name:"Fountain View Apartments",address:"3640 Los Feliz Blvd, Los Angeles, CA 90027",market:"Los Angeles",submarket:"Los Feliz",date:"2025-08-15",class:"",units:122,yearBuilt:1954.0,yearBuiltRaw:1954,sf:102236,avgSF:838.0,price:33750000,cap:null,ppu:276639,psf:330.0,buyer:"Wilshire Capital Partners",seller:"Fountain View Apartments",notes:"Renovated 2022",lat:34.115864993772,lng:-118.272722155517},
+  {id:167,name:"Cypress Point",address:"1241 Cypress Point Ln, Ventura, CA 93003",market:"Ventura County",submarket:"Ventura",date:"2025-08-15",class:"",units:268,yearBuilt:1990.0,yearBuiltRaw:1990,sf:235840,avgSF:880.0,price:100000000,cap:4.54,ppu:373134,psf:424.0,buyer:"Raintree Partners",seller:"The Towbes Group",notes:"",lat:34.26333545709,lng:-119.215604168788},
+  {id:168,name:"Fusion Encore",address:"1714 N McCadden Pl, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2025-08-15",class:"",units:218,yearBuilt:2010.0,yearBuiltRaw:2010,sf:186172,avgSF:854.0,price:73900000,cap:4.2,ppu:338991,psf:397.0,buyer:"The Lighthouse Group",seller:"New York Life",notes:"Renovated 2018",lat:34.101827045318,lng:-118.337351611654},
+  {id:169,name:"Venue at Orange",address:"1610 Orange Ave, Redlands, CA 92373",market:"Inland Empire",submarket:"Redlands",date:"2025-07-15",class:"",units:328,yearBuilt:2023.0,yearBuiltRaw:2023,sf:309632,avgSF:944.0,price:148400000,cap:4.5,ppu:452439,psf:479.0,buyer:"Sentinel Real Estate",seller:"LuxView Properties",notes:"",lat:34.052047381342,lng:-117.209101103219},
+  {id:170,name:"10th & G",address:"707 10th Ave, San Diego, CA 92101",market:"San Diego",submarket:"East Village",date:"2025-07-15",class:"",units:207,yearBuilt:2010.0,yearBuiltRaw:2010,sf:110745,avgSF:535.0,price:71000000,cap:4.85,ppu:342995,psf:641.0,buyer:"Lowe",seller:"JPM",notes:"",lat:32.712715440301,lng:-117.155512003802},
+  {id:171,name:"AMLI Warner Center",address:"21200 Kittridge St, Woodland Hills, CA 91303",market:"Los Angeles",submarket:"Warner Center",date:"2025-07-15",class:"",units:522,yearBuilt:2006.0,yearBuiltRaw:2006,sf:460592,avgSF:882.0,price:190500000,cap:5.22,ppu:364943,psf:414.0,buyer:"Waterton",seller:"AMLI Residential",notes:"",lat:34.191153853029,lng:-118.594109606527},
+  {id:172,name:"Ontario Town Square Townhomes",address:"380 E Bluebird Privado, Ontario, CA 91764",market:"Inland Empire",submarket:"Ontario",date:"2025-07-15",class:"",units:140,yearBuilt:2009.0,yearBuiltRaw:2009,sf:209160,avgSF:1494.0,price:60500000,cap:5.2,ppu:432143,psf:289.0,buyer:"Green Leaf",seller:"MG Properties",notes:"",lat:34.064327629327,lng:-117.647290799607},
+  {id:173,name:"The Langham",address:"715 S Normandie Ave, Los Angeles, CA 90005",market:"Los Angeles",submarket:"Koreatown",date:"2025-07-15",class:"",units:181,yearBuilt:1927.0,yearBuiltRaw:1927,sf:132210,avgSF:540.0,price:26100000,cap:8.22,ppu:144199,psf:197.0,buyer:"Concord Capital Partners",seller:"The Seligman Group",notes:"Renovated 2014",lat:34.059450513893,lng:-118.299874922413},
+  {id:174,name:"Park Wilshire",address:"2424 Wilshire Blvd, Los Angeles, CA 90057",market:"Los Angeles",submarket:"MacArthur Park",date:"2025-07-15",class:"",units:170,yearBuilt:1924.0,yearBuiltRaw:1924,sf:96050,avgSF:565.0,price:25000000,cap:null,ppu:147059,psf:260.0,buyer:"Concord Capital Partners",seller:"Midwood Investment & Development",notes:"Renovated 2004",lat:34.059725323261,lng:-118.279838918716},
+  {id:175,name:"Villa Del Mar (Leasehold)",address:"13999 Marquesas Way, Marina Del Rey, CA 90292",market:"Los Angeles",submarket:"Marina Del Rey",date:"2025-07-15",class:"",units:198,yearBuilt:1972.0,yearBuiltRaw:1972,sf:244134,avgSF:1233.0,price:62000000,cap:10.47,ppu:313131,psf:254.0,buyer:"Whittier Trust/Woodridge Capital",seller:"Far West Management",notes:"",lat:33.976518,lng:-118.454351},
+  {id:176,name:"Folia",address:"12520 Camino Del Sur, San Diego, CA 92129",market:"San Diego",submarket:"Rancho Penasquitos",date:"2025-06-15",class:"",units:342,yearBuilt:2025.0,yearBuiltRaw:2025,sf:375516,avgSF:1098.0,price:238000000,cap:null,ppu:695906,psf:634.0,buyer:"Property Reserve",seller:"Holland/Invesco",notes:"Cap rate noted as \"Mid-4% Stab.\"",lat:32.9806119,lng:-117.1572854},
+  {id:177,name:"Chase Knolls",address:"13401 Riverside Dr, Sherman Oaks, CA 91423",market:"Los Angeles",submarket:"Sherman Oaks",date:"2025-06-15",class:"",units:401,yearBuilt:1948.0,yearBuiltRaw:1948,sf:337642,avgSF:842.0,price:129000000,cap:null,ppu:321696,psf:382.0,buyer:"JRK",seller:"Waterton",notes:"Renovated 2022; Cap rate noted as \"Mid-5%\"",lat:34.157671438418,lng:-118.425130566926},
+  {id:178,name:"Overlook Point",address:"1616 Guy St, San Diego, CA 92103",market:"San Diego",submarket:"Midtown",date:"2025-06-15",class:"",units:121,yearBuilt:1963.0,yearBuiltRaw:1963,sf:41624,avgSF:344.0,price:31100000,cap:null,ppu:257025,psf:747.0,buyer:"Prospect Sd Overlook LLC",seller:"Viewpoint Equities",notes:"",lat:32.743815471669,lng:-117.178331395421},
+  {id:179,name:"Novo",address:"1940 Fullerton Rd, Rowland Heights, CA 91748",market:"Los Angeles",submarket:"Rowland Heights",date:"2025-06-15",class:"",units:126,yearBuilt:1974.0,yearBuiltRaw:1974,sf:104202,avgSF:827.0,price:38300000,cap:null,ppu:303968,psf:368.0,buyer:"Community Housing Works",seller:"Stratford Partners",notes:"",lat:33.984278680937,lng:-117.90752880345},
+  {id:180,name:"Candlewood North",address:"9830 Reseda Blvd, Northridge, CA 91324",market:"Los Angeles",submarket:"Northridge",date:"2025-06-15",class:"",units:189,yearBuilt:1964.0,yearBuiltRaw:1964,sf:170856,avgSF:904.0,price:51100000,cap:null,ppu:270370,psf:299.0,buyer:"Post Investment Group",seller:"Waterton",notes:"",lat:34.249318434775,lng:-118.536024932526},
+  {id:181,name:"Citron Apartments",address:"901 E South St, Anaheim, CA 92805",market:"Orange County",submarket:"Anaheim",date:"2025-06-15",class:"",units:314,yearBuilt:2023.0,yearBuiltRaw:2023,sf:283542,avgSF:903.0,price:144440000,cap:4.75,ppu:460000,psf:509.0,buyer:"MG Properties",seller:"Anton Development",notes:"",lat:33.82877842323,lng:-117.902254093284},
+  {id:182,name:"Santa Fe Ranch",address:"3402 Calle Odessa, Carlsbad, CA 92009",market:"San Diego",submarket:"Carlsbad",date:"2025-04-15",class:"",units:320,yearBuilt:1987.0,yearBuiltRaw:1987,sf:274560,avgSF:858.0,price:138750000,cap:4.65,ppu:433594,psf:505.0,buyer:"Bridge Investment Group",seller:"Nuveen",notes:"",lat:33.078030639992,lng:-117.234421287673},
+  {id:183,name:"Skyline at MacArthur Place (Condo Conversion)",address:"1 MacArthur Pl, Santa Ana, CA 92707",market:"Orange County",submarket:"Santa Ana",date:"2025-04-15",class:"",units:350,yearBuilt:2008.0,yearBuiltRaw:2008,sf:541450,avgSF:1547.0,price:239600000,cap:4.3,ppu:684571,psf:443.0,buyer:"Crescent Heights",seller:"Essex Property Trust",notes:"",lat:33.700156458075,lng:-117.867933035491},
+  {id:184,name:"Creekside Alta Loma",address:"10757 Lemon Ave, Rancho Cucamonga, CA 91737",market:"Inland Empire",submarket:"Rancho Cucamonga",date:"2025-04-15",class:"",units:290,yearBuilt:1989.0,yearBuiltRaw:1989,sf:257230,avgSF:887.0,price:90000000,cap:5.08,ppu:310345,psf:350.0,buyer:"Livcor",seller:"Nuveen",notes:"",lat:34.139655800387,lng:-117.57030652802},
+  {id:185,name:"Terraza Hills",address:"425 E Bradley Ave, El Cajon, CA 92021",market:"San Diego",submarket:"El Cajon",date:"2025-03-15",class:"",units:200,yearBuilt:1976.0,yearBuiltRaw:1976,sf:168400,avgSF:842.0,price:45000000,cap:6.0,ppu:225000,psf:267.0,buyer:"Sunstone Property Trust",seller:"Don Swanson",notes:"Renovated 2000",lat:32.81905892057,lng:-116.954372928926},
+  {id:186,name:"Gateway Villas",address:"290 N Hudson Ave, Pasadena, CA 91101",market:"Los Angeles",submarket:"Pasadena",date:"2025-03-15",class:"",units:140,yearBuilt:2002.0,yearBuiltRaw:2002,sf:134540,avgSF:961.0,price:60000000,cap:3.7,ppu:428571,psf:446.0,buyer:"Hines",seller:"Washington Capital",notes:"",lat:34.150727043656,lng:-118.134587323689},
+  {id:187,name:"Elevate at Towngate",address:"13400 Elsworth St, Moreno Valley, CA 92553",market:"Inland Empire",submarket:"Moreno Valley",date:"2025-03-15",class:"",units:227,yearBuilt:1973.0,yearBuiltRaw:1973,sf:202938,avgSF:894.0,price:41000000,cap:6.25,ppu:180617,psf:202.0,buyer:"FPA",seller:"NSE/Brixton",notes:"",lat:33.925645383479,lng:-117.269972251018},
+  {id:188,name:"Palm Chaparral",address:"38441 5th St W, Palmdale, CA 93551",market:"Los Angeles",submarket:"Palmdale",date:"2025-03-15",class:"",units:296,yearBuilt:1987.0,yearBuiltRaw:1987,sf:213712,avgSF:722.0,price:71000000,cap:6.98,ppu:239865,psf:332.0,buyer:"Post Investment Group",seller:"George Brock",notes:"",lat:34.580089954571,lng:-118.138562993472},
+  {id:189,name:"Genessee Park",address:"3710 Boyd Ave, San Diego, CA 92111",market:"San Diego",submarket:"Clairemont",date:"2025-02-15",class:"",units:192,yearBuilt:1984.0,yearBuiltRaw:1984,sf:200256,avgSF:1043.0,price:67900000,cap:3.0,ppu:353646,psf:339.0,buyer:"American Assets Trust",seller:"Scott Management Company",notes:"",lat:32.81088723272,lng:-117.177590899637},
+  {id:190,name:"Highridge",address:"28125 Peacock Ridge Dr, Rancho Palos Verdes, CA 90275",market:"Los Angeles",submarket:"Rancho Palos Verdes",date:"2025-02-15",class:"",units:257,yearBuilt:1972.0,yearBuiltRaw:1972,sf:297349,avgSF:1157.0,price:127000000,cap:5.19,ppu:494163,psf:427.0,buyer:"Bascom, Pacific Life",seller:"Essex Property Trust",notes:"",lat:33.776118399968,lng:-118.382006536335},
+  {id:191,name:"Park 12",address:"100 Park Plz, San Diego, CA 92101",market:"San Diego",submarket:"East Village",date:"2025-02-15",class:"",units:718,yearBuilt:2018.0,yearBuiltRaw:2018,sf:692152,avgSF:964.0,price:309000000,cap:4.9,ppu:430362,psf:446.0,buyer:"MG Properties",seller:"Greystar",notes:"",lat:32.706815,lng:-117.1542339},
+  {id:192,name:"Teresina Apartments",address:"1250 Santa Cora Ave, Chula Vista, CA 91913",market:"San Diego",submarket:"Otay Ranch",date:"2025-01-15",class:"",units:440,yearBuilt:2000.0,yearBuiltRaw:2000,sf:430760,avgSF:979.0,price:183000000,cap:5.0,ppu:415909,psf:425.0,buyer:"Nuveen",seller:"Equity Residential",notes:"",lat:32.630922143694,lng:-116.985624147709},
+  {id:193,name:"Rancho Vista Apartments (Leasehold)",address:"3200 E Jurupa St, Ontario, CA 91761",market:"Inland Empire",submarket:"Ontario",date:"2025-01-15",class:"",units:125,yearBuilt:1984.0,yearBuiltRaw:1984,sf:127750,avgSF:1022.0,price:46275000,cap:null,ppu:370200,psf:362.0,buyer:"Convenient Holdings",seller:"Clear Capital",notes:"Cap rate noted as \"High 4%\"",lat:34.048239475753,lng:-117.581635874897},
+  {id:194,name:"G12 (loan assumption)",address:"1200 S Grand Ave, Los Angeles, CA 90015",market:"Los Angeles",submarket:"DTLA",date:"2025-01-15",class:"",units:347,yearBuilt:2017.0,yearBuiltRaw:2017,sf:230408,avgSF:664.0,price:122491000,cap:5.0,ppu:353000,psf:532.0,buyer:"Waterton",seller:"Affinius Capital",notes:"",lat:34.040056722189,lng:-118.26328789418},
+  {id:195,name:"La Vista Apartments",address:"740 S Western Ave, Santa Maria, CA 93458",market:"Santa Barbara",submarket:"Santa Maria",date:"2024-12-15",class:"",units:460,yearBuilt:1979.0,yearBuiltRaw:1979,sf:296700,avgSF:645.0,price:116000000,cap:5.2,ppu:252174,psf:391.0,buyer:"Westview Capital",seller:"Kennedy Wilson",notes:"Renovated 2011",lat:34.945446555693,lng:-120.449399221149},
+  {id:196,name:"The Clarendon Apartments",address:"22121 Clarendon St, Woodland Hills, CA 91367",market:"Los Angeles",submarket:"Woodland Hills",date:"2024-12-15",class:"",units:335,yearBuilt:2020.0,yearBuiltRaw:2020,sf:294800,avgSF:880.0,price:141900000,cap:null,ppu:423582,psf:481.0,buyer:"HACLA",seller:"AMCAL",notes:"",lat:34.169695447565,lng:-118.608237371223},
+  {id:197,name:"Candela",address:"1745 N Gramercy Pl, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2024-12-15",class:"",units:112,yearBuilt:1973.0,yearBuiltRaw:1973,sf:85344,avgSF:762.0,price:35490000,cap:5.5,ppu:316875,psf:416.0,buyer:"Brookfield / CityView",seller:"Raintree Partners",notes:"",lat:34.102508133007,lng:-118.3123265462},
+  {id:198,name:"Simone",address:"1401 Union St, San Diego, CA 92101",market:"San Diego",submarket:"Little Italy",date:"2024-12-15",class:"",units:395,yearBuilt:2023.0,yearBuiltRaw:2023,sf:316213,avgSF:801.0,price:283000000,cap:4.65,ppu:716456,psf:895.0,buyer:"Blackrock | NY Common",seller:"TCR | Pac Life | AAA Mgmt.",notes:"",lat:32.719939534568,lng:-117.165528996002},
+  {id:199,name:"The Royce",address:"3301 Michelson Dr, Irvine, CA 92612",market:"Orange County",submarket:"Irvine",date:"2024-12-15",class:"",units:520,yearBuilt:2018.0,yearBuiltRaw:2018,sf:404560,avgSF:778.0,price:247500000,cap:4.2,ppu:475962,psf:612.0,buyer:"Metlife | NY Common",seller:"Invesco",notes:"",lat:33.671075538147,lng:-117.84490221262},
+  {id:200,name:"Vista Imperio",address:"5880 Lochmoor Dr, Riverside, CA 92507",market:"Inland Empire",submarket:"Riverside",date:"2024-12-15",class:"",units:158,yearBuilt:2004.0,yearBuiltRaw:2004,sf:136038,avgSF:861.0,price:49850000,cap:4.9,ppu:315506,psf:366.0,buyer:"Western National Group",seller:"LivCor",notes:"",lat:33.944849210648,lng:-117.30082840295},
+  {id:201,name:"Seventh & G",address:"677 Seventh Ave, San Diego, CA 92101",market:"San Diego",submarket:"Gaslamp",date:"2024-12-15",class:"",units:145,yearBuilt:2006.0,yearBuiltRaw:2006,sf:99325,avgSF:685.0,price:53000000,cap:4.85,ppu:365517,psf:534.0,buyer:"Pacific Urban Residential",seller:"JP Morgan",notes:"",lat:32.712309908607,lng:-117.158251703121},
+  {id:202,name:"Sixth & G",address:"655 Sixth Ave, San Diego, CA 92101",market:"San Diego",submarket:"Gaslamp",date:"2024-12-15",class:"",units:106,yearBuilt:2008.0,yearBuiltRaw:2008,sf:82044,avgSF:774.0,price:44500000,cap:4.85,ppu:419811,psf:542.0,buyer:"Pacific Urban Residential",seller:"JP Morgan",notes:"",lat:32.712088206711,lng:-117.159153248794},
+  {id:203,name:"The Marquee Apartment Homes",address:"5001 Lankershim Blvd, North Hollywood, CA 91601",market:"Los Angeles",submarket:"North Hollywood",date:"2024-11-15",class:"",units:236,yearBuilt:1965.0,yearBuiltRaw:1965,sf:144432,avgSF:612.0,price:44000000,cap:null,ppu:186441,psf:305.0,buyer:"Post Investment Group",seller:"MG Properties",notes:"Renovated 2010",lat:34.160696364166,lng:-118.372163591009},
+  {id:204,name:"Market Street Village (Affordable Conversion)",address:"699 14th St, San Diego, CA 92101",market:"San Diego",submarket:"East Village",date:"2024-11-15",class:"",units:229,yearBuilt:2006.0,yearBuiltRaw:2006,sf:174727,avgSF:763.0,price:82200000,cap:4.5,ppu:358952,psf:470.0,buyer:"Community Solutions",seller:"EQR",notes:"",lat:32.712562956338,lng:-117.151874821573},
+  {id:205,name:"Presidio Villas",address:"115 Taylor St, Vista, CA 92084",market:"San Diego",submarket:"Vista",date:"2024-11-15",class:"",units:100,yearBuilt:1986.0,yearBuiltRaw:1986,sf:94700,avgSF:947.0,price:14800000,cap:null,ppu:148000,psf:156.0,buyer:"George Doan",seller:"Frandsen Family Trust",notes:"",lat:33.229286534513,lng:-117.247579244966},
+  {id:206,name:"Preserve at Melrose",address:"1401 N Melrose Dr, Vista, CA 92083",market:"San Diego",submarket:"Vista",date:"2024-11-15",class:"",units:410,yearBuilt:2015.0,yearBuiltRaw:2015,sf:403850,avgSF:985.0,price:185000000,cap:4.9,ppu:451220,psf:458.0,buyer:"Mesirow",seller:"MG Properties",notes:"",lat:33.215618136658,lng:-117.256085372011},
+  {id:207,name:"Westbrook",address:"4680 Mitchell Ave, Riverside, CA 92505",market:"Inland Empire",submarket:"Riverside",date:"2024-11-15",class:"",units:56,yearBuilt:2023.0,yearBuiltRaw:2023,sf:45008,avgSF:804.0,price:18585000,cap:4.5,ppu:331875,psf:412.9265908282972,buyer:"-",seller:"-",notes:"",lat:33.919116862369,lng:-117.482943738839},
+  {id:208,name:"Skye Apartments",address:"501 W Bobier Dr, Vista, CA 92083",market:"San Diego",submarket:"Vista",date:"2024-11-15",class:"",units:290,yearBuilt:2016.0,yearBuiltRaw:2016,sf:273760,avgSF:944.0,price:125750000,cap:5.0,ppu:433621,psf:459.0,buyer:"MG Properties",seller:"Northwestern Mutual",notes:"",lat:33.221261197078,lng:-117.253686688765},
+  {id:209,name:"The Avalyn",address:"1774 Metro Ave, Chula Vista, CA 91915",market:"San Diego",submarket:"Otay Ranch",date:"2024-10-15",class:"",units:480,yearBuilt:null,yearBuiltRaw:null,sf:498509,avgSF:1039.0,price:210000000,cap:4.9,ppu:437500,psf:421.0,buyer:"Blackstone",seller:"Met Life/All State/Ryan Co.",notes:"",lat:32.616633863997,lng:-116.965762450531},
+  {id:210,name:"10401-10559 Edison Way",address:"10401 Edison Way, North Hollywood, CA 91601",market:"Los Angeles",submarket:"North Hollywood",date:"2024-10-15",class:"",units:126,yearBuilt:1945.0,yearBuiltRaw:1945,sf:112644,avgSF:894.0,price:18200000,cap:null,ppu:144444,psf:162.0,buyer:"LAApartments.Biz",seller:"Douglas Apartments",notes:"",lat:34.180102438838,lng:-118.358972477076},
+  {id:211,name:"Sofi Ventura",address:"1776 Buena Vista St, Ventura, CA 93001",market:"Ventura County",submarket:"Ventura",date:"2024-10-15",class:"",units:255,yearBuilt:1976.0,yearBuiltRaw:1976,sf:197115,avgSF:773.0,price:88000000,cap:5.0,ppu:345098,psf:446.0,buyer:"Tom Redren & Associates",seller:"Pacific Urban Investors",notes:"",lat:34.285353840753,lng:-119.274100212176},
+  {id:212,name:"Horizon",address:"1551 W Edinger Ave, Santa Ana, CA 92704",market:"Orange County",submarket:"Santa Ana",date:"2024-10-15",class:"",units:406,yearBuilt:1972.0,yearBuiltRaw:1972,sf:326424,avgSF:804.0,price:129200000,cap:5.45,ppu:318227,psf:396.0,buyer:"Ethos/Bridge",seller:"Bascom/AEW",notes:"",lat:33.727246456182,lng:-117.889108289305},
+  {id:213,name:"Eastown (Leasehold)",address:"6201 Hollywood Blvd, Los Angeles, CA 90028",market:"Los Angeles",submarket:"Hollywood",date:"2024-09-15",class:"",units:535,yearBuilt:2014.0,yearBuiltRaw:2014,sf:411950,avgSF:770.0,price:190981000,cap:6.11,ppu:356974,psf:464.0,buyer:"FPA Multifamily",seller:"DLJ Real Estate",notes:"",lat:34.101691438832,lng:-118.324550989202},
+  {id:214,name:"Las Palmas",address:"2598 Associated Rd, Fullerton, CA 92835",market:"Orange County",submarket:"Fullerton",date:"2024-09-15",class:"",units:259,yearBuilt:1982.0,yearBuiltRaw:1982,sf:231337,avgSF:855.0,price:40000000,cap:null,ppu:154440,psf:173.0,buyer:"Borstein Enterprises",seller:"Marshall Ketchum University",notes:"",lat:33.895485153793,lng:-117.885008759478},
+  {id:215,name:"Marquessa",address:"2235 Treehouse Ln, Corona, CA 92879",market:"Inland Empire",submarket:"Corona",date:"2024-09-15",class:"",units:336,yearBuilt:1992.0,yearBuiltRaw:1992,sf:298704,avgSF:889.0,price:91000000,cap:4.75,ppu:270000,psf:305.0,buyer:"Fairfield",seller:"Capitaland",notes:"",lat:33.891970974489,lng:-117.521978091965},
+  {id:216,name:"Ashton",address:"2178 Stoneridge Dr, Corona, CA 92879",market:"Inland Empire",submarket:"Corona",date:"2024-09-15",class:"",units:492,yearBuilt:1986.0,yearBuiltRaw:1986,sf:418200,avgSF:850.0,price:136500000,cap:5.1,ppu:277439,psf:326.0,buyer:"Abacus",seller:"Capitaland",notes:"",lat:33.892377960838,lng:-117.523947626352},
+  {id:217,name:"Deerwood",address:"2215 E Lakeside Pl, Corona, CA 92879",market:"Inland Empire",submarket:"Corona",date:"2024-09-15",class:"",units:316,yearBuilt:1992.0,yearBuiltRaw:1992,sf:336856,avgSF:1066.0,price:100000000,cap:5.15,ppu:315000,psf:297.0,buyer:"Fairfield",seller:"Capitaland",notes:"",lat:33.893656362081,lng:-117.521865814678},
+  {id:218,name:"Broadstone Balboa Park",address:"3288 5th Ave, San Diego, CA 92103",market:"San Diego",submarket:"Banker's Hill",date:"2024-09-15",class:"",units:100,yearBuilt:2015.0,yearBuiltRaw:2015,sf:77700,avgSF:777.0,price:51000000,cap:4.3,ppu:510000,psf:656.0,buyer:"Avalon Bay",seller:"Clarion Partners",notes:"",lat:32.73960302015,lng:-117.160427214278},
+  {id:220,name:"High Desert Villas",address:"13351 Mariposa Rd, Victorville, CA 92395",market:"Inland Empire",submarket:"Victorville",date:"2024-08-15",class:"",units:232,yearBuilt:1989.0,yearBuiltRaw:1989,sf:197053,avgSF:849.0,price:34800000,cap:5.7,ppu:150000,psf:177.0,buyer:"Investment Concepts",seller:"Strata",notes:"",lat:34.492885008784,lng:-117.330105998938},
+  {id:221,name:"Wakaba Apartments (2024 sale)",address:"232 E 2nd St, Los Angeles, CA 90012",market:"Los Angeles",submarket:"DTLA",date:"2024-08-15",class:"",units:240,yearBuilt:2016.0,yearBuiltRaw:2016,sf:200432,avgSF:835.0,price:86100000,cap:5.23,ppu:358750,psf:430.0,buyer:"FPA Multifamily",seller:"J.P. Morgan",notes:"",lat:34.049907871062,lng:-118.242857042369},
+  {id:222,name:"The Arbors",address:"1100 Fairhaven Ave, Santa Ana, CA 92705",market:"Orange County",submarket:"Santa Ana",date:"2024-08-15",class:"",units:160,yearBuilt:1969.0,yearBuiltRaw:1969,sf:122720,avgSF:767.0,price:40750000,cap:5.25,ppu:254688,psf:332.0,buyer:"Post Investment Group",seller:"Robert & Cathleen Brett",notes:"",lat:33.77325685775,lng:-117.855796472969},
+  {id:223,name:"ALX",address:"300 14th St, San Diego, CA 92101",market:"San Diego",submarket:"East Village",date:"2024-07-15",class:"",units:313,yearBuilt:2017.0,yearBuiltRaw:2017,sf:246644,avgSF:788.0,price:136000000,cap:4.4,ppu:434505,psf:551.0,buyer:"Virtu Investments",seller:"UBS",notes:"",lat:32.708427477786,lng:-117.151950428109},
+  {id:224,name:"Millennium PQ",address:"14433 Penasquitos Dr, San Diego, CA 92129",market:"San Diego",submarket:"I-15 Corridor",date:"2024-07-15",class:"",units:331,yearBuilt:2023.0,yearBuiltRaw:2023,sf:288724,avgSF:872.0,price:166824000,cap:4.7,ppu:504000,psf:578.0,buyer:"GID",seller:"Dinerstein",notes:"",lat:32.978051956042,lng:-117.091046306797},
+  {id:225,name:"Rancho Hills",address:"856 Heatherwood Lane, Vista, CA 92081",market:"San Diego",submarket:"Vista",date:"2024-07-15",class:"",units:148,yearBuilt:1986.0,yearBuiltRaw:1986,sf:119140,avgSF:805.0,price:53500000,cap:5.41,ppu:361486,psf:449.0,buyer:"Gelt",seller:"Nuveen",notes:"",lat:33.163907063003,lng:-117.223580519355},
+  {id:226,name:"Luma",address:"1440 Columbia St. San Diego, CA 92101",market:"San Diego",submarket:"Little Italy",date:"2024-06-15",class:"",units:220,yearBuilt:2019.0,yearBuiltRaw:2019,sf:202620,avgSF:921.0,price:135000000,cap:4.14,ppu:613636,psf:666.0,buyer:"KKR",seller:"Quarterra",notes:"",lat:32.720311893094,lng:-117.167463563714},
+  {id:227,name:"Marisol",address:"3251 Marisol Pl, Carlsbad, CA 92010",market:"San Diego",submarket:"Carlsbad",date:"2024-06-15",class:"",units:278,yearBuilt:2018.0,yearBuiltRaw:2018,sf:282726,avgSF:1017.0,price:151510000,cap:4.75,ppu:545000,psf:536.0,buyer:"KKR",seller:"Quarterra",notes:"",lat:33.1802647,lng:-117.302774},
+  {id:228,name:"CORE",address:"1815 S Westside Dr, Anaheim, CA 92805",market:"Orange County",submarket:"Anaheim",date:"2024-06-15",class:"",units:400,yearBuilt:2018.0,yearBuiltRaw:2018,sf:363200,avgSF:908.0,price:180000000,cap:5.25,ppu:450000,psf:496.0,buyer:"KKR",seller:"Quarterra",notes:"",lat:33.801509333734,lng:-117.894822822678},
+  {id:229,name:"Hue North Hollywood",address:"5077 Lankershim Blvd, North Hollywood, CA 91601",market:"Los Angeles",submarket:"North Hollywood",date:"2024-06-15",class:"",units:156,yearBuilt:2015.0,yearBuiltRaw:2015,sf:123084,avgSF:789.0,price:62100000,cap:5.7,ppu:398077,psf:505.0,buyer:"Prime",seller:"AvalonBay Communities",notes:"",lat:34.16260551171,lng:-118.373321540005},
+  {id:230,name:"The Ranch at Moorpark",address:"51 Majestic Ct, Moorpark, CA 93021",market:"Ventura County",submarket:"Moorpark",date:"2024-04-15",class:"",units:370,yearBuilt:1986.0,yearBuiltRaw:1986,sf:328560,avgSF:888.0,price:136900000,cap:5.5,ppu:370000,psf:417.0,buyer:"AEW",seller:"Decron Properties",notes:"",lat:34.276525451683,lng:-118.880725531927},
+  {id:231,name:"VEDA",address:"4735 Sepulveda Blvd, Sherman Oaks, CA 91403",market:"Los Angeles",submarket:"Sherman Oaks",date:"2024-04-15",class:"",units:236,yearBuilt:1988.0,yearBuiltRaw:1988,sf:223256,avgSF:946.0,price:72500000,cap:4.8,ppu:307203,psf:325.0,buyer:"Abacus Capital Group",seller:"Alliance Residential Company/ Stockbridge",notes:"Renovated 2018",lat:34.156795878493,lng:-118.4662223077},
+  {id:232,name:"888 Hope",address:"888 S Hope St, Los Angeles, CA 90017",market:"Los Angeles",submarket:"DTLA",date:"2024-03-15",class:"",units:525,yearBuilt:2018.0,yearBuiltRaw:2018,sf:431550,avgSF:822.0,price:186000000,cap:4.64,ppu:354286,psf:431.0,buyer:"FPA Multifamily",seller:"CIM Group",notes:"",lat:34.045201890916,lng:-118.260204317513},
+  {id:233,name:"Pulse Millenia",address:"2043 Artisan Wy, Chula Vista, CA 91915",market:"San Diego",submarket:"Otay Ranch",date:"2024-02-15",class:"",units:273,yearBuilt:2016.0,yearBuiltRaw:2016,sf:264810,avgSF:970.0,price:116000000,cap:5.25,ppu:424908,psf:438.0,buyer:"MG Properties",seller:"Northwestern Mutual Life",notes:"",lat:32.619653232041,lng:-116.964366516418},
+  {id:234,name:"Regency Palms Apartments",address:"6762 Warner Ave, Huntington Beach, CA 92647",market:"Orange County",submarket:"Huntington Beach",date:"2024-01-15",class:"",units:310,yearBuilt:1969.0,yearBuiltRaw:1969,sf:252340,avgSF:814.0,price:127000000,cap:4.25,ppu:409677,psf:503.0,buyer:"A&M Properties",seller:"EQR",notes:"",lat:33.71539587284,lng:-118.010934727979},
+  {id:235,name:"Aventon Huntington Station",address:"5919 Ashlar Way, Alexandria, VA",market:"Washington DC",submarket:"Alexandria",date:"2026-01-01",class:"B",units:366,yearBuilt:2024.0,yearBuiltRaw:2024,sf:330864,avgSF:904.0,price:150500000,cap:5.0,ppu:411202,psf:455.0,buyer:"Eaton Vance",seller:"Aventon",notes:"",lat:38.791316,lng:-77.074705},
+  {id:236,name:"Burke Shire Commons",address:"5812 Chase Commons Ct, Burke, VA",market:"Washington DC",submarket:"Fairfax County",date:"2026-01-01",class:"C",units:360,yearBuilt:1986.0,yearBuiltRaw:1986,sf:365040,avgSF:1014.0,price:138100000,cap:5.25,ppu:383611,psf:378.0,buyer:"DSF Group",seller:"Blackstone",notes:"",lat:38.793257,lng:-77.297939},
+  {id:237,name:"Kingston at McLean Crossing",address:"7480 Birdwood Ave, McLean, VA",market:"Washington DC",submarket:"McLean",date:"2026-01-01",class:"B",units:319,yearBuilt:2018.0,yearBuiltRaw:2018,sf:278806,avgSF:874.0,price:144600000,cap:5.0,ppu:453292,psf:519.0,buyer:"Pantzer",seller:"LCOR",notes:"",lat:38.92513,lng:-77.203888},
+  {id:238,name:"Aspire Apollo",address:"4451 Telfair Blvd, Camp Springs, MD",market:"Washington DC",submarket:"Prince George's County",date:"2026-02-01",class:"B",units:417,yearBuilt:2016.0,yearBuiltRaw:2016,sf:413247,avgSF:991.0,price:112000000,cap:6.0,ppu:268585,psf:271.0,buyer:"29th Street",seller:"Peter NG Schwartz",notes:"Part of 3-property Apollo portfolio sale; 29th Street / Peter NG Schwartz; $323.5M total",lat:38.829518,lng:-76.910143},
+  {id:239,name:"Allure Apollo",address:"4401 Telfair Blvd, Camp Springs, MD",market:"Washington DC",submarket:"Prince George's County",date:"2026-02-01",class:"B",units:384,yearBuilt:2019.0,yearBuiltRaw:2019,sf:372480,avgSF:970.0,price:109000000,cap:6.0,ppu:283854,psf:293.0,buyer:"29th Street",seller:"Peter NG Schwartz",notes:"Part of 3-property Apollo portfolio sale; 29th Street / Peter NG Schwartz; $323.5M total",lat:38.829853,lng:-76.910846},
+  {id:240,name:"Ascend Apollo",address:"9400 Grand Blvd, Largo, MD",market:"Washington DC",submarket:"Prince George's County",date:"2026-02-01",class:"B",units:424,yearBuilt:2017.0,yearBuiltRaw:2017,sf:356584,avgSF:841.0,price:102500000,cap:6.0,ppu:241745,psf:287.0,buyer:"29th Street",seller:"Peter NG Schwartz",notes:"Part of 3-property Apollo portfolio sale; 29th Street / Peter NG Schwartz; $323.5M total",lat:38.899082,lng:-76.842055},
+  {id:241,name:"Preserve at Westfields",address:"4950 Westcroft Blvd, Chantilly, VA",market:"Washington DC",submarket:"Chantilly",date:"2026-03-01",class:"B",units:595,yearBuilt:2020.0,yearBuiltRaw:2020,sf:588505,avgSF:989.0,price:258500000,cap:5.0,ppu:434454,psf:439.0,buyer:"Eaton Vance",seller:"Northwood",notes:"",lat:38.872685,lng:-77.450171},
+  {id:242,name:"The Reed",address:"15955 Frederick Rd, Rockville, MD",market:"Washington DC",submarket:"Rockville",date:"2026-03-01",class:"B",units:417,yearBuilt:2015.0,yearBuiltRaw:2015,sf:372084,avgSF:892.0,price:110000000,cap:null,ppu:263789,psf:296.0,buyer:"Comstock",seller:"Bainbridge",notes:"",lat:39.118299,lng:-77.169363},
+  {id:243,name:"The Albemarle",address:"4501 Connecticut Ave NW, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2026-03-01",class:"B",units:234,yearBuilt:1966.0,yearBuiltRaw:1966,sf:260910,avgSF:1115.0,price:69800000,cap:null,ppu:298291,psf:268.0,buyer:"WC Smith",seller:"AvalonBay",notes:"",lat:38.947972,lng:-77.06564},
+  {id:244,name:"The Premier",address:"8711 Georgia Ave, Silver Spring, MD",market:"Washington DC",submarket:"Silver Spring",date:"2025-12-01",class:"B",units:160,yearBuilt:2014.0,yearBuiltRaw:2014,sf:120000,avgSF:750.0,price:42300000,cap:5.5,ppu:264375,psf:353.0,buyer:"Brookwynn",seller:"Guardian Realty",notes:"",lat:38.997737,lng:-77.02985},
+  {id:245,name:"Pallas at Pike & Rose",address:"11550 Old Georgetown Rd, North Bethesda, MD",market:"Washington DC",submarket:"North Bethesda",date:"2025-12-01",class:"B",units:319,yearBuilt:2015.0,yearBuiltRaw:2015,sf:321233,avgSF:1007.0,price:120000000,cap:5.0,ppu:376176,psf:374.0,buyer:"Bell",seller:"Federal Realty",notes:"",lat:39.048624,lng:-77.118896},
+  {id:246,name:"Vy Reston Heights",address:"11830 Sunrise Valley Dr, Reston, VA",market:"Washington DC",submarket:"Reston",date:"2025-12-01",class:"B",units:385,yearBuilt:2018.0,yearBuiltRaw:2018,sf:323785,avgSF:841.0,price:119000000,cap:5.25,ppu:309091,psf:368.0,buyer:"Pantzer",seller:"Newport Capital",notes:"",lat:38.948114,lng:-77.356167},
+  {id:247,name:"Signature",address:"11850 Freedom Dr, Reston, VA",market:"Washington DC",submarket:"Reston",date:"2025-12-01",class:"A",units:508,yearBuilt:2018.0,yearBuiltRaw:2018,sf:492760,avgSF:970.0,price:225000000,cap:4.7,ppu:442913,psf:457.0,buyer:"Sterling",seller:"BXP",notes:"",lat:38.95945,lng:-77.356091},
+  {id:248,name:"Misty Ridge",address:"1989 Delaware Dr, Woodbridge, VA",market:"Washington DC",submarket:"Woodbridge",date:"2025-12-01",class:"C",units:409,yearBuilt:1989.0,yearBuiltRaw:1989,sf:327609,avgSF:801.0,price:100000000,cap:5.35,ppu:244499,psf:305.0,buyer:"Bridge Capital",seller:"Square",notes:"",lat:38.628886,lng:-77.274446},
+  {id:249,name:"Enclave at Potomac Club",address:"15200 Leicestershire St, Woodbridge, VA",market:"Washington DC",submarket:"Woodbridge",date:"2025-11-01",class:"B",units:406,yearBuilt:2013.0,yearBuiltRaw:2013,sf:416150,avgSF:1025.0,price:147000000,cap:5.0,ppu:362069,psf:353.0,buyer:"UDR",seller:"Mesirow",notes:"",lat:38.623933,lng:-77.282479},
+  {id:250,name:"Woods at Addison",address:"6500 Ronald Rd, Capitol Heights, MD",market:"Washington DC",submarket:"Prince George's County",date:"2025-11-01",class:"C",units:225,yearBuilt:1964.0,yearBuiltRaw:1964,sf:206100,avgSF:916.0,price:24300000,cap:7.25,ppu:108000,psf:118.0,buyer:"Sage",seller:"FCP",notes:"",lat:38.873094,lng:-76.894776},
+  {id:251,name:"Holly Spring Meadows",address:"5521 Marlboro Pike, District Heights, MD",market:"Washington DC",submarket:"Prince George's County",date:"2025-11-01",class:"C",units:224,yearBuilt:1968.0,yearBuiltRaw:1968,sf:184128,avgSF:822.0,price:23100000,cap:7.25,ppu:103125,psf:125.0,buyer:"Sage",seller:"FCP",notes:"",lat:38.862167,lng:-76.912491},
+  {id:252,name:"Southpoint Reserve",address:"5300 Steeplechase Dr, Fredericksburg, VA",market:"Washington DC",submarket:"Fredericksburg",date:"2025-10-01",class:"C",units:156,yearBuilt:1985.0,yearBuiltRaw:1985,sf:115752,avgSF:742.0,price:36000000,cap:5.75,ppu:230769,psf:311.0,buyer:"Covenant",seller:"Blackfin",notes:"",lat:38.244683,lng:-77.515746},
+  {id:253,name:"Park Place at Van Dorn",address:"6001 Archstone Way, Alexandria, VA",market:"Washington DC",submarket:"Alexandria",date:"2025-10-01",class:"B",units:285,yearBuilt:2003.0,yearBuiltRaw:2003,sf:306090,avgSF:1074.0,price:114000000,cap:5.25,ppu:400000,psf:372.0,buyer:"PacificUrban",seller:"CIM",notes:"",lat:38.793473,lng:-77.138673},
+  {id:254,name:"New Quin",address:"811 Quincy St NW, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-09-01",class:"C",units:107,yearBuilt:1928.0,yearBuiltRaw:1928,sf:74900,avgSF:700.0,price:21300000,cap:5.75,ppu:199065,psf:284.0,buyer:"Capitol Rock",seller:"UIP",notes:"",lat:38.93769,lng:-77.023843},
+  {id:255,name:"The Clarendon",address:"1200 N Herndon St, Arlington, VA",market:"Washington DC",submarket:"Arlington",date:"2025-08-01",class:"B",units:292,yearBuilt:2005.0,yearBuiltRaw:2005,sf:254332,avgSF:871.0,price:150900000,cap:4.9,ppu:516781,psf:593.0,buyer:"Peterson",seller:"EQR",notes:"",lat:38.887692,lng:-77.096167},
+  {id:256,name:"Ascend Rippon",address:"2500 Vantage Dr, Woodbridge, VA",market:"Washington DC",submarket:"Woodbridge",date:"2025-08-01",class:"B",units:236,yearBuilt:2025.0,yearBuiltRaw:2025,sf:222548,avgSF:943.0,price:83250000,cap:5.0,ppu:352754,psf:374.0,buyer:"Southern Mgmt",seller:"DR Horton",notes:"",lat:38.616291,lng:-77.285245},
+  {id:257,name:"Malvern Lakes",address:"75 Malvern Lakes Cir, Fredericksburg, VA",market:"Washington DC",submarket:"Fredericksburg",date:"2025-08-01",class:"C",units:150,yearBuilt:2000.0,yearBuiltRaw:2000,sf:160800,avgSF:1072.0,price:34300000,cap:5.75,ppu:228667,psf:213.0,buyer:"Fulton Peak",seller:"PrideRock",notes:"",lat:38.362677,lng:-77.531454},
+  {id:258,name:"Jefferson Place",address:"5835 White Lake Ln, Frederick, MD",market:"Washington DC",submarket:"Frederick",date:"2025-08-01",class:"B",units:236,yearBuilt:2017.0,yearBuiltRaw:2017,sf:198948,avgSF:843.0,price:70750000,cap:5.0,ppu:299788,psf:356.0,buyer:"Eaton Vance",seller:"Bluerock",notes:"",lat:39.392786,lng:-77.453479},
+  {id:259,name:"Ashton at Dulles Corner",address:"13958 Mansarde Ave, Herndon, VA",market:"Washington DC",submarket:"Herndon",date:"2025-08-01",class:"B",units:454,yearBuilt:2009.0,yearBuiltRaw:2009,sf:460810,avgSF:1015.0,price:147000000,cap:4.8,ppu:323789,psf:319.0,buyer:"Bozzuto",seller:"Greystar",notes:"",lat:38.953665,lng:-77.427015},
+  {id:260,name:"AVA H Street",address:"318 I St NE, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-08-01",class:"B",units:138,yearBuilt:2013.0,yearBuiltRaw:2013,sf:99084,avgSF:718.0,price:36000000,cap:5.75,ppu:260870,psf:363.0,buyer:"Foulger Pratt/PCCP",seller:"AvalonBay",notes:"Part of 4-property AvalonBay NoMa portfolio sale; Foulger Pratt/PCCP / AvalonBay; $446.2M total",lat:38.901387,lng:-77.001721},
+  {id:261,name:"Avalon First and M",address:"1160 1st St NE, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-08-01",class:"B",units:469,yearBuilt:2012.0,yearBuiltRaw:2012,sf:439922,avgSF:938.0,price:181750000,cap:5.75,ppu:387527,psf:413.0,buyer:"Foulger Pratt/PCCP",seller:"AvalonBay",notes:"Part of 4-property AvalonBay NoMa portfolio sale; Foulger Pratt/PCCP / AvalonBay; $446.2M total",lat:38.905176,lng:-77.005959},
+  {id:262,name:"AVA NoMa",address:"55 M St NE, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-08-01",class:"B",units:438,yearBuilt:2018.0,yearBuiltRaw:2018,sf:367044,avgSF:838.0,price:142480000,cap:5.75,ppu:325297,psf:388.0,buyer:"Foulger Pratt/PCCP",seller:"AvalonBay",notes:"Part of 4-property AvalonBay NoMa portfolio sale; Foulger Pratt/PCCP / AvalonBay; $446.2M total",lat:38.905585,lng:-77.007257},
+  {id:263,name:"Avalon Gallery Place",address:"770 5th St NW, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-08-01",class:"B",units:203,yearBuilt:2003.0,yearBuiltRaw:2003,sf:184121,avgSF:907.0,price:86000000,cap:5.75,ppu:423645,psf:467.0,buyer:"Foulger Pratt/PCCP",seller:"AvalonBay",notes:"Part of 4-property AvalonBay NoMa portfolio sale; Foulger Pratt/PCCP / AvalonBay; $446.2M total",lat:38.899051,lng:-77.019002},
+  {id:264,name:"The Batley",address:"1270 4th St NE, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-07-01",class:"A",units:432,yearBuilt:2019.0,yearBuiltRaw:2019,sf:300240,avgSF:695.0,price:155000000,cap:5.25,ppu:358796,psf:516.0,buyer:"Peterson",seller:"JBG Smith",notes:"",lat:38.908416,lng:-76.999691},
+  {id:265,name:"Plaza Towers",address:"6700 Belcrest Rd, Hyattsville, MD",market:"Washington DC",submarket:"Prince George's County",date:"2025-07-01",class:"C",units:288,yearBuilt:1964.0,yearBuiltRaw:1964,sf:238176,avgSF:827.0,price:56900000,cap:5.5,ppu:197569,psf:239.0,buyer:"Horning",seller:"Jair Lynch",notes:"",lat:38.97182,lng:-76.953913},
+  {id:266,name:"WestEnd25",address:"1255 25th St NW, Washington, DC",market:"Washington DC",submarket:"Washington DC",date:"2025-06-01",class:"B",units:283,yearBuilt:2009.0,yearBuiltRaw:2009,sf:273378,avgSF:966.0,price:186000000,cap:4.9,ppu:657244,psf:680.0,buyer:"JRK",seller:"JBG Smith",notes:"",lat:38.906266,lng:-77.053222},
+  {id:267,name:"Chase Heritage",address:"1212 Chase Heritage Cir, Sterling, VA",market:"Washington DC",submarket:"Loudoun County",date:"2025-06-01",class:"C",units:236,yearBuilt:1986.0,yearBuiltRaw:1986,sf:234584,avgSF:994.0,price:71980000,cap:5.5,ppu:305000,psf:307.0,buyer:"TruAmerica",seller:"McDowell",notes:"",lat:38.995119,lng:-77.416217},
+  {id:268,name:"Hideaway Townhomes",address:"5600 Salem Run Blvd, Fredericksburg, VA",market:"Washington DC",submarket:"Fredericksburg",date:"2025-04-01",class:"C",units:200,yearBuilt:1999.0,yearBuiltRaw:1999,sf:210000,avgSF:1050.0,price:47000000,cap:5.75,ppu:235000,psf:224.0,buyer:"Linden",seller:"JRK",notes:"",lat:38.275134,lng:-77.532374},
+  {id:269,name:"Fenwick",address:"8616 2nd Ave, Silver Spring, MD",market:"Washington DC",submarket:"Silver Spring",date:"2025-04-01",class:"B",units:311,yearBuilt:2014.0,yearBuiltRaw:2014,sf:247556,avgSF:796.0,price:90190000,cap:5.25,ppu:290000,psf:364.0,buyer:"29th Street",seller:"Fairfield",notes:"",lat:38.997125,lng:-77.033689},
+  {id:270,name:"Central",address:"8455 Fenton St, Silver Spring, MD",market:"Washington DC",submarket:"Silver Spring",date:"2025-03-01",class:"B",units:243,yearBuilt:2017.0,yearBuiltRaw:2017,sf:214905,avgSF:885.0,price:71350000,cap:5.25,ppu:293621,psf:332.0,buyer:"Galium Capital",seller:"Grosvenor",notes:"",lat:38.995904,lng:-77.024559},
+  {id:271,name:"8001 Woodmont",address:"8001 Woodmont Ave, Bethesda, MD",market:"Washington DC",submarket:"Bethesda",date:"2025-02-01",class:"A",units:322,yearBuilt:2022.0,yearBuiltRaw:2022,sf:344540,avgSF:1070.0,price:177000000,cap:4.75,ppu:549689,psf:514.0,buyer:"Peterson",seller:"JBG Smith",notes:"",lat:38.98993,lng:-77.096354},
+  {id:272,name:"Adaire",address:"1521 Boyd Pointe Way, Vienna, VA",market:"Washington DC",submarket:"Tysons",date:"2025-02-01",class:"B",units:400,yearBuilt:2016.0,yearBuiltRaw:2016,sf:315600,avgSF:789.0,price:124000000,cap:5.0,ppu:310000,psf:393.0,buyer:"Carmel",seller:"Greystar",notes:"",lat:38.93067,lng:-77.241309},
+  {id:273,name:"Latitude",address:"3601 Fairfax Dr, Arlington, VA",market:"Washington DC",submarket:"Arlington",date:"2025-01-01",class:"A",units:265,yearBuilt:2017.0,yearBuiltRaw:2017,sf:216735,avgSF:819.0,price:112250000,cap:4.9,ppu:423585,psf:517.0,buyer:"Carmel",seller:"Greystar",notes:"",lat:38.88346,lng:-77.103449},
+  {id:274,name:"Brentford at the Mile",address:"7970 Maitland St, McLean, VA",market:"Washington DC",submarket:"McLean",date:"2025-01-01",class:"B",units:411,yearBuilt:2022.0,yearBuiltRaw:2022,sf:407352,avgSF:992.0,price:167250000,cap:5.0,ppu:406934,psf:410.0,buyer:"Sentinel",seller:"Kettler",notes:"",lat:38.928073057067984,lng:-77.2206617415853}
+];
+
+let selectedId = null;
+let isSatellite = false;
+let map, lightLayer, satLayer, markers = {}, clusterGroup;
+let subjectMarker = null, radiusCircles = [];
+let filteredComps = [];
+let visibleComps = [];
+let pdfSelectedIds = new Set();
+
+const NA = 'N/A';
+const fmtPrice = n => { if (n == null || n === '') return NA; if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B'; if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M'; if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K'; return '$' + n.toLocaleString(); };
+const fmtPPU = n => n != null ? '$' + Math.round(n/1000) + 'K' : NA;
+const fmtCap = n => n != null ? n.toFixed(2) + '%' : NA;
+const fmtPSF = n => n != null ? '$' + Math.round(n) : NA;
+const fmtDate = s => { if (!s) return NA; const d = new Date(s + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
+
+function toggleCombo(name, event) {
+  event && event.stopPropagation();
+  const menu = document.getElementById('menu-' + name);
+  document.querySelectorAll('.filter-combo-menu').forEach(m => { if (m !== menu) m.classList.remove('show'); });
+  menu.classList.toggle('show');
+}
+function setComboValue(inputId, value) {
+  document.getElementById(inputId).value = value;
+  document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show'));
+  applyFilters();
+}
+document.addEventListener('click', (e) => { if (!e.target.closest('.filter-combo')) document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show')); });
+
+map = L.map('map', { center: [34.05, -118.35], zoom: 10, zoomControl: false, attributionControl: true });
+lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 });
+
+// Cluster group: groups nearby pins into bubbles when zoomed out
+clusterGroup = L.markerClusterGroup({
+  showCoverageOnHover: true,        // hover shows the bounding polygon of the cluster
+  zoomToBoundsOnClick: true,        // click to zoom into cluster
+  spiderfyOnMaxZoom: true,          // at max zoom, spread overlapping pins
+  removeOutsideVisibleBounds: true, // perf: only render visible markers
+  disableClusteringAtZoom: 9,       // at zoom 9+ (LA county fits on screen), show individual pins
+  maxClusterRadius: 30,             // pixel radius for clustering — quite tight
+  polygonOptions: { color: '#C8993A', weight: 1.5, opacity: 0.6, fillColor: '#C8993A', fillOpacity: 0.08 },
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
+    let size = 36, fontSize = 13;
+    if (count >= 100) { size = 64; fontSize = 17; }
+    else if (count >= 30) { size = 54; fontSize = 15; }
+    else if (count >= 10) { size = 44; fontSize = 14; }
+    const r = (size - 4) / 2;  // radius accounting for stroke
+    const cx = size / 2, cy = size / 2;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;overflow:visible;">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#0D1F35" stroke="#ffffff" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(13,31,53,0.4));"/>
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="DM Sans, sans-serif" font-size="${fontSize}" font-weight="700">${count}</text>
+    </svg>`;
+    return L.divIcon({
+      html: svg,
+      className: 'ct-cluster-wrapper',
+      iconSize: L.point(size, size)
+    });
+  }
+});
+map.addLayer(clusterGroup);
+
+map.on('moveend zoomend', () => { recomputeVisible(); renderList(); renderStats(); });
+
+function createMarker(comp) {
+  const icon = L.divIcon({ className: '', html: `<div class="comp-marker" data-id="${comp.id}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+  const m = L.marker([comp.lat, comp.lng], { icon, riseOnHover: true });
+  m.bindPopup(buildPopup(comp), { maxWidth: 340, closeButton: true, autoPan: true });
+  m.on('click', () => selectComp(comp.id, false));
+  return m;
+}
+
+function buildPopup(c) {
+  const yr = c.yearBuiltRaw || c.yearBuilt || NA;
+  const units = c.units != null ? `${c.units} units` : NA;
+  const stats = `<div><div class="popup-stat-label">Sale Price</div><div class="popup-stat-val">${fmtPrice(c.price)}</div></div><div><div class="popup-stat-label">Price / Unit</div><div class="popup-stat-val">${fmtPPU(c.ppu)}</div></div><div><div class="popup-stat-label">Cap Rate</div><div class="popup-stat-val">${fmtCap(c.cap)}</div></div><div><div class="popup-stat-label">Price / SF</div><div class="popup-stat-val">${fmtPSF(c.psf)}</div></div>`;
+  const meta = `<div class="popup-meta"><strong>Sold:</strong> ${fmtDate(c.date)}<br><strong>Buyer:</strong> ${c.buyer || NA}<br><strong>Seller:</strong> ${c.seller || NA}</div>`;
+  const notes = c.notes ? `<div class="popup-notes">${c.notes}</div>` : '';
+  return `<div class="popup-header"><div class="popup-name">${c.name}</div><div class="popup-addr">${c.address || c.submarket || ''}</div><div class="popup-meta-header"><strong>Year Built:</strong> ${yr} &nbsp;·&nbsp; <strong>${units}</strong></div></div><div class="popup-body"><div class="popup-grid">${stats}</div>${meta}${notes}</div>`;
+}
+
+function renderMarkers() {
+  // Clear existing markers from the cluster group
+  clusterGroup.clearLayers();
+  markers = {};
+  const layerArr = [];
+  filteredComps.forEach(c => {
+    if (c.lat == null || c.lng == null) return;
+    const m = createMarker(c);
+    markers[c.id] = m;
+    layerArr.push(m);
+  });
+  // Bulk-add for better performance
+  clusterGroup.addLayers(layerArr);
+}
+
+function recomputeVisible() {
+  if (!map) { visibleComps = filteredComps.slice(); return; }
+  const bounds = map.getBounds();
+  visibleComps = filteredComps.filter(c => { if (c.lat == null || c.lng == null) return false; if (selectedId === c.id) return true; return bounds.contains([c.lat, c.lng]); });
+}
+
+function renderList() {
+  const list = document.getElementById('compList');
+  if (visibleComps.length === 0) { list.innerHTML = '<div class="empty-state">No comps in this view.<br><span style="color:var(--text2);">Try zooming out or clearing filters.</span></div>'; return; }
+  list.innerHTML = visibleComps.map(c => {
+    const tags = [];
+    if (c.units != null) tags.push(`<span class="tag tag-gray">${c.units}u</span>`);
+    if (c.yearBuilt) tags.push(`<span class="tag tag-gray">${c.yearBuilt}</span>`);
+    if (c.cap != null) tags.push(`<span class="tag tag-gold">${fmtCap(c.cap)}</span>`);
+    return `<div class="comp-item ${selectedId === c.id ? 'active' : ''}" onclick="selectComp(${c.id}, true)"><div class="comp-top"><div class="comp-name">${c.name}</div><div class="comp-price-block"><div class="comp-price">${fmtPrice(c.price)}</div>${c.ppu != null ? `<div class="comp-ppu">${fmtPPU(c.ppu)}/unit</div>` : ''}</div></div><div class="comp-addr">${c.submarket || ''} · ${fmtDate(c.date)}</div><div class="comp-tags">${tags.join('')}</div></div>`;
+  }).join('');
+}
+
+function renderStats() {
+  const valid = visibleComps;
+  const caps = valid.map(c => c.cap).filter(v => v != null);
+  const ppus = valid.map(c => c.ppu).filter(v => v != null);
+  const avgCap = caps.length ? (caps.reduce((a,b)=>a+b,0) / caps.length) : null;
+  const avgPpu = ppus.length ? (ppus.reduce((a,b)=>a+b,0) / ppus.length) : null;
+  document.getElementById('statsBar').innerHTML = `<div class="stat"><div class="stat-label">Comps in view</div><div class="stat-val">${valid.length}</div></div><div class="stat"><div class="stat-label">Avg Cap</div><div class="stat-val">${avgCap != null ? avgCap.toFixed(2) + '%' : NA}</div></div><div class="stat"><div class="stat-label">Avg $/Unit</div><div class="stat-val">${avgPpu != null ? '$' + Math.round(avgPpu/1000) + 'K' : NA}</div></div>`;
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const market = document.getElementById('filterMarket').dataset.value || '';
+  const monthsBack = parseFloat(document.getElementById('filterMonths').value);
+  const unitsMin = parseFloat(document.getElementById('filterUnitsMin').value);
+  const unitsMax = parseFloat(document.getElementById('filterUnitsMax').value);
+  const yearMin = parseFloat(document.getElementById('filterYearMin').value);
+  const yearMax = parseFloat(document.getElementById('filterYearMax').value);
+  let cutoffDate = null;
+  if (!isNaN(monthsBack) && monthsBack > 0) { const today = new Date(); cutoffDate = new Date(today.getFullYear(), today.getMonth() - monthsBack, today.getDate()); }
+  filteredComps = COMPS.filter(c => {
+    if (market && c.market !== market) return false;
+    if (cutoffDate) { if (!c.date) return false; const compDate = new Date(c.date + 'T00:00:00'); if (compDate < cutoffDate) return false; }
+    if (!isNaN(unitsMin)) { if (c.units == null || c.units < unitsMin) return false; }
+    if (!isNaN(unitsMax)) { if (c.units == null || c.units > unitsMax) return false; }
+    if (!isNaN(yearMin)) { if (!c.yearBuilt || c.yearBuilt < yearMin) return false; }
+    if (!isNaN(yearMax)) { if (!c.yearBuilt || c.yearBuilt > yearMax) return false; }
+    if (q) { const hay = `${c.name||''} ${c.address||''} ${c.submarket||''} ${c.market||''} ${c.buyer||''} ${c.seller||''}`.toLowerCase(); if (!hay.includes(q)) return false; }
+    return true;
+  });
+  filteredComps.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  renderMarkers(); recomputeVisible(); renderList(); renderStats();
+}
+
+function setMarketFilter(market) {
+  const input = document.getElementById('filterMarket');
+  input.value = market || 'All markets';
+  input.dataset.value = market || '';
+  document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show'));
+  applyFilters();
+  // When user picks a specific market, zoom to fit those comps
+  if (market) {
+    const comps = COMPS.filter(c => c.market === market && c.lat != null && c.lng != null);
+    if (comps.length > 0) {
+      const bounds = L.latLngBounds(comps.map(c => [c.lat, c.lng]));
+      map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8, maxZoom: 12 });
+    }
+  } else {
+    // "All markets" — fit to all comps
+    fitMapToAllComps();
+  }
+}
+
+function fitMapToAllComps() {
+  const comps = COMPS.filter(c => c.lat != null && c.lng != null);
+  if (comps.length > 0) {
+    const bounds = L.latLngBounds(comps.map(c => [c.lat, c.lng]));
+    map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8 });
+  }
+}
+
+function populateMarketDropdown() {
+  const markets = [...new Set(COMPS.map(c => c.market).filter(m => m))].sort();
+  const menu = document.getElementById('menu-market');
+  // Keep "All markets" option, append markets, then a clear option
+  const counts = {};
+  COMPS.forEach(c => { if (c.market) counts[c.market] = (counts[c.market] || 0) + 1; });
+  let html = '<div class="opt" onclick="setMarketFilter(\'\')">All markets</div>';
+  markets.forEach(m => {
+    html += `<div class="opt" onclick="setMarketFilter('${m.replace(/'/g, "\\'")}')">${m} <span style="color:var(--text3);font-size:11px;">(${counts[m]})</span></div>`;
+  });
+  menu.innerHTML = html;
+}
+
+function clearAllFilters() {
+  ['filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax','searchInput'].forEach(id => document.getElementById(id).value = '');
+  // Reset market filter
+  const marketInput = document.getElementById('filterMarket');
+  marketInput.value = 'All markets';
+  marketInput.dataset.value = '';
+  applyFilters();
+}
+
+function selectComp(id, panTo) {
+  selectedId = id;
+  Object.entries(markers).forEach(([mid, m]) => { const el = m.getElement()?.querySelector('.comp-marker'); if (el) el.classList.toggle('selected', String(mid) === String(id)); });
+  recomputeVisible(); renderList(); renderStats();
+  const c = COMPS.find(x => x.id === id);
+  if (!c || !markers[id]) return;
+  const marker = markers[id];
+  // If marker is inside a cluster, zoom in to reveal it before opening popup
+  if (clusterGroup.hasLayer(marker) && clusterGroup.getVisibleParent(marker) !== marker) {
+    clusterGroup.zoomToShowLayer(marker, () => {
+      marker.openPopup();
+      // Re-apply selected style after uncluster (DOM gets recreated)
+      const el = marker.getElement()?.querySelector('.comp-marker');
+      if (el) el.classList.add('selected');
+    });
+  } else {
+    if (panTo) map.flyTo([c.lat, c.lng], Math.max(map.getZoom(), 13), { duration: 0.6 });
+    marker.openPopup();
+  }
+}
+
+function resetView() {
+  selectedId = null;
+  // Reset market filter and fit to all comps
+  const marketInput = document.getElementById('filterMarket');
+  marketInput.value = 'All markets';
+  marketInput.dataset.value = '';
+  applyFilters();
+  fitMapToAllComps();
+  Object.values(markers).forEach(m => { const el = m.getElement()?.querySelector('.comp-marker'); if (el) el.classList.remove('selected'); });
+}
+
+function toggleSatellite() {
+  isSatellite = !isSatellite;
+  const btn = document.getElementById('satBtn');
+  if (isSatellite) { map.removeLayer(lightLayer); satLayer.addTo(map); btn.classList.add('active'); btn.querySelector('.map-btn-label').textContent = 'MAP'; }
+  else { map.removeLayer(satLayer); lightLayer.addTo(map); btn.classList.remove('active'); btn.querySelector('.map-btn-label').textContent = 'SAT'; }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebarToggle');
+  const isHidden = sidebar.classList.toggle('collapsed');
+  document.body.classList.toggle('sidebar-hidden', isHidden);
+  btn.textContent = isHidden ? '›' : '‹';
+  btn.title = isHidden ? 'Show sidebar' : 'Hide sidebar';
+  setTimeout(() => map.invalidateSize(), 280);
+}
+
+async function setSubjectProperty() {
+  const input = document.getElementById('subjectInput').value.trim();
+  if (!input) return;
+  const llMatch = input.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+  let lat, lng, label;
+  if (llMatch) { lat = parseFloat(llMatch[1]); lng = parseFloat(llMatch[2]); label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; }
+  else {
+    document.getElementById('subjectInfo').innerHTML = 'Looking up address...';
+    document.getElementById('subjectInfo').classList.add('show');
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(input)}`;
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' }});
+      const data = await r.json();
+      if (data && data.length) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); label = data[0].display_name.split(',').slice(0,3).join(','); }
+      else { document.getElementById('subjectInfo').innerHTML = '<span style="color:#B00">Address not found.</span>'; return; }
+    } catch (err) { document.getElementById('subjectInfo').innerHTML = '<span style="color:#B00">Geocoding failed. Try lat,lng format.</span>'; return; }
+  }
+  if (subjectMarker) map.removeLayer(subjectMarker);
+  radiusCircles.forEach(c => map.removeLayer(c));
+  radiusCircles = [];
+  subjectMarker = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div class="subject-marker"></div>', iconSize: [22,22], iconAnchor: [11,11] }), zIndexOffset: 1000 }).addTo(map);
+  subjectMarker.bindTooltip('Subject Property', { permanent: false, direction: 'top', offset: [0,-12] });
+  [1, 3, 5].forEach((mi, i) => { const c = L.circle([lat, lng], { radius: mi * 1609.34, color: '#C8993A', weight: 1.5, fillOpacity: 0.04 + (i * 0.01), fillColor: '#C8993A', dashArray: i === 0 ? '' : '4,4', interactive: false }).addTo(map); radiusCircles.push(c); });
+  map.flyToBounds(radiusCircles[2].getBounds(), { padding: [40,40], duration: 0.8 });
+  document.getElementById('subjectInfo').innerHTML = `<strong>Set:</strong> ${label}<br><span style="color:var(--text3);">1 / 3 / 5 mile rings shown</span><span class="subject-clear" onclick="clearSubject()">clear</span>`;
+  document.getElementById('subjectInfo').classList.add('show');
+}
+
+function clearSubject() {
+  if (subjectMarker) map.removeLayer(subjectMarker);
+  radiusCircles.forEach(c => map.removeLayer(c));
+  radiusCircles = []; subjectMarker = null;
+  document.getElementById('subjectInfo').classList.remove('show');
+  document.getElementById('subjectInput').value = '';
+}
+
+function openAddModal() { document.getElementById('addModal').style.display = 'flex'; document.getElementById('csvRowOutput').style.display = 'none'; }
+function closeModal() { document.getElementById('addModal').style.display = 'none'; ['f_name','f_address','f_market','f_units','f_yearbuilt','f_sf','f_avgsf','f_price','f_cap','f_ppu','f_psf','f_buyer','f_seller','f_lat','f_lng','f_notes','f_date'].forEach(id => document.getElementById(id).value = ''); }
+function csvEscape(v) { if (v == null || v === '') return ''; const s = String(v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; }
+function generateCsvRow() {
+  const v = id => document.getElementById(id).value.trim();
+  const fields = [Date.now(), v('f_name'), v('f_address'), v('f_market'), v('f_date'), '', v('f_units'), v('f_yearbuilt'), v('f_sf'), v('f_avgsf'), v('f_price'), v('f_cap'), v('f_ppu'), v('f_psf'), v('f_buyer'), v('f_seller'), v('f_notes'), v('f_lat'), v('f_lng')];
+  if (!fields[1] || !fields[2] || !fields[17] || !fields[18]) { alert('Please fill in: Property name, Address, Latitude, Longitude'); return; }
+  document.getElementById('csvRowText').textContent = fields.map(csvEscape).join(',');
+  document.getElementById('csvRowOutput').style.display = 'block';
+}
+function copyCsvRow() { navigator.clipboard.writeText(document.getElementById('csvRowText').textContent).then(() => alert('Copied to clipboard!')); }
+
+function openExportModal() { document.getElementById('exportCount').textContent = visibleComps.length; document.getElementById('exportModal').style.display = 'flex'; }
+function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+function downloadCSV() {
+  const headers = ['id','name','address','submarket','sale_date','units','year_built','sf','avg_sf','sale_price','cap_rate','ppu','psf','buyer','seller','notes','lat','lng'];
+  const rows = [headers.join(',')];
+  visibleComps.forEach(c => rows.push([c.id, c.name, c.address, c.submarket, c.date, c.units, c.yearBuilt, c.sf, c.avgSF, c.price, c.cap, c.ppu, c.psf, c.buyer, c.seller, c.notes, c.lat, c.lng].map(csvEscape).join(',')));
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `comptrack_export_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  closeExportModal();
+}
+
+// ─── PDF EXPORT ─────────────────────────────────────────
+function openPdfModal() {
+  pdfSelectedIds = new Set(visibleComps.map(c => c.id));
+  renderPdfCompList();
+  document.getElementById('pdfModal').style.display = 'flex';
+}
+function closePdfModal() { document.getElementById('pdfModal').style.display = 'none'; }
+
+function renderPdfCompList() {
+  const list = document.getElementById('pdfCompList');
+  const all = [...filteredComps].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  list.innerHTML = all.map(c => `<label class="pdf-comp-row"><input type="checkbox" ${pdfSelectedIds.has(c.id) ? 'checked' : ''} onchange="togglePdfSelect(${c.id}, this.checked)"><span class="pdf-comp-name">${c.name}</span><span class="pdf-comp-meta">${fmtDate(c.date)} · ${c.units != null ? c.units + 'u' : NA} · ${fmtPrice(c.price)}</span></label>`).join('');
+  document.getElementById('pdfSelectedCount').textContent = pdfSelectedIds.size + ' selected';
+}
+
+function togglePdfSelect(id, checked) {
+  if (checked) pdfSelectedIds.add(id); else pdfSelectedIds.delete(id);
+  document.getElementById('pdfSelectedCount').textContent = pdfSelectedIds.size + ' selected';
+}
+
+function pdfSelectAll(checked) { if (checked) filteredComps.forEach(c => pdfSelectedIds.add(c.id)); else pdfSelectedIds.clear(); renderPdfCompList(); }
+function pdfSelectVisible() { pdfSelectedIds = new Set(visibleComps.map(c => c.id)); renderPdfCompList(); }
+
+function weightedAvg(items, valueKey, weightKey = 'units') {
+  let sum = 0, weight = 0;
+  items.forEach(c => { if (c[valueKey] != null && c[weightKey] != null) { sum += c[valueKey] * c[weightKey]; weight += c[weightKey]; } });
+  return weight > 0 ? sum / weight : null;
+}
+function simpleAvg(items, key) { const vals = items.map(c => c[key]).filter(v => v != null); return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : null; }
+
+async function generatePDF() {
+  const selectedComps = filteredComps.filter(c => pdfSelectedIds.has(c.id)).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  if (selectedComps.length === 0) { alert('Please select at least one comp to include.'); return; }
+
+  const subj = {
+    name: document.getElementById('pdf_subj_name').value.trim(),
+    addr: document.getElementById('pdf_subj_addr').value.trim(),
+    units: parseFloat(document.getElementById('pdf_subj_units').value) || null,
+    year: parseFloat(document.getElementById('pdf_subj_year').value) || null,
+    price: parseFloat(document.getElementById('pdf_subj_price').value) || null,
+    cap: parseFloat(document.getElementById('pdf_subj_cap').value) || null,
+    sf: parseFloat(document.getElementById('pdf_subj_sf').value) || null,
+    lat: parseFloat(document.getElementById('pdf_subj_lat').value) || null,
+    lng: parseFloat(document.getElementById('pdf_subj_lng').value) || null,
+  };
+  subj.ppu = (subj.price && subj.units) ? subj.price / subj.units : null;
+  subj.psf = (subj.price && subj.sf) ? subj.price / subj.sf : null;
+  const hasSubject = !!(subj.name || subj.addr);
+  const hasSubjectMap = hasSubject && subj.lat != null && subj.lng != null;
+
+  const reportTitle = document.getElementById('pdf_title').value.trim() || 'Sale Comparables Analysis';
+  document.getElementById('loadingOverlay').classList.add('show');
+  document.getElementById('loadingText').textContent = 'Generating PDF...';
+
+  try {
+    closePdfModal();
+    await new Promise(r => setTimeout(r, 50));
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 32;
+
+    pdf.setFillColor(13, 31, 53);
+    pdf.rect(0, 0, pageW, 56, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+    pdf.text('CompTrack', margin, 28);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+    pdf.setTextColor(200, 153, 58);
+    pdf.text('Sale Comparables Analysis', margin, 44);
+    pdf.setTextColor(255, 255, 255); pdf.setFontSize(9);
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    pdf.text(dateStr, pageW - margin, 28, { align: 'right' });
+    pdf.setFontSize(10); pdf.setTextColor(200, 153, 58);
+    pdf.text(reportTitle, pageW - margin, 44, { align: 'right' });
+
+    let y = 80;
+
+    if (hasSubject) {
+      pdf.setFillColor(247, 244, 238);
+      pdf.rect(margin, y, pageW - 2*margin, 70, 'F');
+      pdf.setDrawColor(200, 153, 58); pdf.setLineWidth(2);
+      pdf.line(margin, y, margin, y + 70);
+      pdf.setLineWidth(0.5);
+      pdf.setTextColor(200, 153, 58); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+      pdf.text('SUBJECT PROPERTY', margin + 12, y + 16);
+      pdf.setTextColor(13, 31, 53); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13);
+      pdf.text(subj.name || 'Subject', margin + 12, y + 32);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(90, 106, 122);
+      pdf.text(subj.addr || '', margin + 12, y + 46);
+
+      const statsX = pageW * 0.45;
+      const cellW = (pageW - margin - statsX) / 5;
+      const stats = [
+        ['Purchase Price', fmtPrice(subj.price)],
+        ['Price / Unit', fmtPPU(subj.ppu)],
+        ['Cap Rate', fmtCap(subj.cap)],
+        ['Units', subj.units != null ? String(subj.units) : NA],
+        ['Year Built', subj.year != null ? String(subj.year) : NA],
+      ];
+      stats.forEach((s, i) => {
+        const x = statsX + i * cellW;
+        pdf.setTextColor(138, 155, 173); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+        pdf.text(s[0].toUpperCase(), x, y + 22);
+        pdf.setTextColor(13, 31, 53); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+        pdf.text(s[1], x, y + 40);
+      });
+      y += 84;
+    }
+
+    const tableHead = [['#', 'Property', 'Address', 'Sale Date', 'Units', 'Year', 'Sale Price', '$/Unit', 'Cap Rate', '$/SF']];
+    const tableBody = selectedComps.map((c, i) => [
+      String(i + 1), c.name || '', c.address || '', fmtDate(c.date),
+      c.units != null ? String(c.units) : NA, c.yearBuilt != null ? String(c.yearBuilt) : NA,
+      fmtPrice(c.price), fmtPPU(c.ppu), fmtCap(c.cap), fmtPSF(c.psf),
+    ]);
+
+    const avgPrice = simpleAvg(selectedComps, 'price');
+    const wAvgPPU = weightedAvg(selectedComps, 'ppu');
+    const wAvgPSF = weightedAvg(selectedComps, 'psf');
+    const avgCap = simpleAvg(selectedComps, 'cap');
+    const avgYear = simpleAvg(selectedComps, 'yearBuilt');
+    const avgUnits = simpleAvg(selectedComps, 'units');
+
+    const avgRow = ['', 'COMP AVERAGES', '', '', avgUnits != null ? Math.round(avgUnits).toString() : NA, avgYear != null ? Math.round(avgYear).toString() : NA, fmtPrice(avgPrice), fmtPPU(wAvgPPU), fmtCap(avgCap), fmtPSF(wAvgPSF)];
+    const subjRow = hasSubject ? ['', 'SUBJECT PROPERTY', subj.addr || '', '', subj.units != null ? String(subj.units) : NA, subj.year != null ? String(subj.year) : NA, fmtPrice(subj.price), fmtPPU(subj.ppu), fmtCap(subj.cap), fmtPSF(subj.psf)] : null;
+
+    pdf.autoTable({
+      startY: y,
+      head: tableHead, body: tableBody, foot: subjRow ? [avgRow, subjRow] : [avgRow],
+      margin: { left: margin, right: margin },
+      theme: 'plain',
+      styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 6, right: 6, bottom: 6, left: 6 }, lineColor: [220, 220, 220], lineWidth: 0.4, textColor: [13, 31, 53] },
+      headStyles: { fillColor: [13, 31, 53], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 8, right: 6, bottom: 8, left: 6 }, halign: 'left' },
+      footStyles: { fillColor: [247, 244, 238], textColor: [13, 31, 53], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 8, right: 6, bottom: 8, left: 6 } },
+      columnStyles: {
+        0: { cellWidth: 24, halign: 'center', textColor: [138, 155, 173] },
+        1: { cellWidth: 130 }, 2: { cellWidth: 165 },
+        3: { cellWidth: 56, halign: 'center' }, 4: { cellWidth: 40, halign: 'center' },
+        5: { cellWidth: 40, halign: 'center' }, 6: { cellWidth: 64, halign: 'right' },
+        7: { cellWidth: 56, halign: 'right' }, 8: { cellWidth: 52, halign: 'right' }, 9: { cellWidth: 40, halign: 'right' },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'foot' && subjRow && data.row.index === 1) { data.cell.styles.fillColor = [200, 153, 58]; data.cell.styles.textColor = [255, 255, 255]; }
+        if (data.section === 'body' && data.row.index % 2 === 1) { data.cell.styles.fillColor = [251, 250, 247]; }
+      },
+    });
+
+    pdf.setTextColor(138, 155, 173); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+    pdf.text(`Generated by CompTrack · ${selectedComps.length} comparables`, margin, pageH - 16);
+    pdf.text('Page 1', pageW - margin, pageH - 16, { align: 'right' });
+
+    if (hasSubjectMap) {
+      document.getElementById('loadingText').textContent = 'Rendering map...';
+      try {
+        const mapImg = await renderPdfMapImage(subj, selectedComps);
+        if (mapImg) {
+          pdf.addPage('letter', 'landscape');
+          pdf.setFillColor(13, 31, 53); pdf.rect(0, 0, pageW, 56, 'F');
+          pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+          pdf.text('CompTrack', margin, 28);
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(200, 153, 58);
+          pdf.text('Comparables Map', margin, 44);
+          pdf.setTextColor(255, 255, 255); pdf.setFontSize(9);
+          pdf.text(dateStr, pageW - margin, 28, { align: 'right' });
+          pdf.setFontSize(10); pdf.setTextColor(200, 153, 58);
+          pdf.text(reportTitle, pageW - margin, 44, { align: 'right' });
+
+          const mapY = 80;
+          const mapWidth = pageW - 2 * margin;
+          const mapHeight = pageH - mapY - 60;
+          const imgAspect = mapImg.width / mapImg.height;
+          const boxAspect = mapWidth / mapHeight;
+          let drawW = mapWidth, drawH = mapHeight, drawX = margin, drawY = mapY;
+          if (imgAspect > boxAspect) { drawH = mapWidth / imgAspect; drawY = mapY + (mapHeight - drawH) / 2; }
+          else { drawW = mapHeight * imgAspect; drawX = margin + (mapWidth - drawW) / 2; }
+
+          pdf.addImage(mapImg.dataUrl, 'PNG', drawX, drawY, drawW, drawH);
+
+          const legendY = pageH - 40;
+          pdf.setFillColor(200, 153, 58);
+          pdf.circle(margin + 6, legendY, 4, 'F');
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(13, 31, 53);
+          pdf.text('Subject Property', margin + 14, legendY + 3);
+          pdf.setFillColor(13, 31, 53);
+          pdf.circle(margin + 110, legendY, 4, 'F');
+          pdf.text(`Comparable Sales (${selectedComps.length})`, margin + 118, legendY + 3);
+          pdf.setTextColor(138, 155, 173); pdf.setFontSize(7);
+          pdf.text('Page 2', pageW - margin, pageH - 16, { align: 'right' });
+        }
+      } catch (mapErr) { console.error('Map render failed:', mapErr); }
+    }
+
+    const fname = `CompTrack_${(reportTitle).replace(/[^a-z0-9]+/gi, '_').replace(/_+/g, '_').slice(0, 50)}_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(fname);
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    alert('Sorry, there was an error generating the PDF: ' + err.message);
+  } finally {
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }
+}
+
+async function renderPdfMapImage(subj, comps) {
+  return new Promise((resolve, reject) => {
+    const container = document.getElementById('pdfMapContainer');
+    container.innerHTML = '<div id="pdfMapInner" style="width:1100px;height:700px;"></div>';
+
+    const tempMap = L.map('pdfMapInner', { zoomControl: false, attributionControl: false, fadeAnimation: false, zoomAnimation: false });
+    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd', crossOrigin: true });
+    tileLayer.addTo(tempMap);
+
+    const points = [[subj.lat, subj.lng]];
+    comps.forEach(c => { if (c.lat != null && c.lng != null) points.push([c.lat, c.lng]); });
+    const bounds = L.latLngBounds(points);
+    tempMap.fitBounds(bounds, { padding: [60, 60] });
+
+    L.marker([subj.lat, subj.lng], { icon: L.divIcon({ className: '', html: '<div style="width:22px;height:22px;border-radius:50%;background:#C8993A;border:3px solid #fff;box-shadow:0 0 0 2px rgba(200,153,58,0.4),0 2px 6px rgba(0,0,0,0.3);"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(tempMap);
+
+    comps.forEach(c => {
+      if (c.lat == null || c.lng == null) return;
+      L.marker([c.lat, c.lng], { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#0D1F35;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(tempMap);
+    });
+
+    let captureAttempted = false;
+    const doCapture = async () => {
+      if (captureAttempted) return;
+      captureAttempted = true;
+      try {
+        await new Promise(r => setTimeout(r, 800));
+        const canvas = await html2canvas(document.getElementById('pdfMapInner'), { useCORS: true, allowTaint: true, logging: false, scale: 1.5, backgroundColor: '#ffffff' });
+        const dataUrl = canvas.toDataURL('image/png');
+        tempMap.remove();
+        container.innerHTML = '';
+        resolve({ dataUrl, width: canvas.width, height: canvas.height });
+      } catch (err) {
+        tempMap.remove();
+        container.innerHTML = '';
+        reject(err);
+      }
+    };
+
+    tileLayer.on('load', doCapture);
+    setTimeout(doCapture, 4000);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+populateMarketDropdown();
+// Initialize the market filter input dataset
+document.getElementById('filterMarket').dataset.value = '';
+applyFilters();
+// Fit initial map view to span all comps
+fitMapToAllComps();
+</script>
+</body>
+</html>
