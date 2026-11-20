@@ -466,6 +466,17 @@ function parseCSV(text) {
   if (f !== '' || row.length) { row.push(f); rows.push(row); }
   return rows.filter(r => r.some(v => v.trim() !== ''));
 }
+// Accepts YYYY-MM-DD, Mon-YY ("Jan-26"), Mon YYYY, or M/D/YYYY; returns YYYY-MM-DD ('' if unreadable)
+function normDate(s) {
+  s = (s || '').trim(); if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  let m = s.match(/^([A-Za-z]{3})[a-z]*[-\s]+(\d{2}|\d{4})$/);
+  if (m && MON.includes(m[1].toLowerCase())) { const y = m[2].length === 2 ? '20' + m[2] : m[2]; return `${y}-${String(MON.indexOf(m[1].toLowerCase()) + 1).padStart(2, '0')}-01`; }
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; }
+  return '';
+}
 async function loadComps() {
   const res = await fetch('comps.csv?v=' + Date.now(), { cache: 'no-store' });
   if (!res.ok) throw new Error('Could not load comps.csv (' + res.status + ')');
@@ -479,6 +490,7 @@ async function loadComps() {
       if (CSV_NUM.includes(col)) { const n = parseFloat(raw.replace(/[$,%\s]/g, '')); c[key] = isNaN(n) ? null : n; }
       else c[key] = raw;
     });
+    c.date = normDate(c.date);
     c.yearBuiltRaw = c.yearBuilt != null ? Math.round(c.yearBuilt) : null;
     return c;
   }).filter(c => c.id != null && c.name);
@@ -513,7 +525,11 @@ function setComboValue(inputId, value) {
 document.addEventListener('click', (e) => { if (!e.target.closest('.filter-combo')) document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show')); });
 
 map = L.map('map', { center: [34.05, -118.35], zoom: 10, zoomControl: false, attributionControl: true });
-lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+// Free, no-key light basemap (Esri Light Gray Canvas + labels). CARTO started requiring an API key.
+lightLayer = L.layerGroup([
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxNativeZoom: 16, maxZoom: 19 }),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 })
+]).addTo(map);
 satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 });
 
 // Cluster group: groups nearby pins into bubbles when zoomed out
@@ -1004,8 +1020,9 @@ async function renderPdfMapImage(subj, comps) {
     container.innerHTML = '<div id="pdfMapInner" style="width:1100px;height:700px;"></div>';
 
     const tempMap = L.map('pdfMapInner', { zoomControl: false, attributionControl: false, fadeAnimation: false, zoomAnimation: false });
-    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd', crossOrigin: true });
+    const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, crossOrigin: true });
     tileLayer.addTo(tempMap);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, crossOrigin: true }).addTo(tempMap);
 
     const points = [[subj.lat, subj.lng]];
     comps.forEach(c => { if (c.lat != null && c.lng != null) points.push([c.lat, c.lng]); });
