@@ -631,6 +631,7 @@ const NA = 'N/A';
 const fmtPrice = n => { if (n == null || n === '') return NA; if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B'; if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M'; if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K'; return '$' + n.toLocaleString(); };
 const fmtPPU = n => n != null ? '$' + Math.round(n/1000) + 'K' : NA;
 const fmtCap = n => n != null ? n.toFixed(2) + '%' : NA;
+const fmtFull = n => n != null ? '$' + Math.round(n).toLocaleString('en-US') : NA;
 const fmtPSF = n => n != null ? '$' + Math.round(n) : NA;
 const fmtDate = s => { if (!s) return NA; const d = new Date(s + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
 
@@ -1064,18 +1065,22 @@ async function generatePDF() {
     const tableBody = selectedComps.map((c, i) => [
       String(i + 1), c.name || '', c.address || '', fmtDate(c.date),
       c.units != null ? String(c.units) : NA, c.yearBuilt != null ? String(c.yearBuilt) : NA,
-      fmtPrice(c.price), fmtPPU(c.ppu), fmtCap(c.cap), fmtPSF(c.psf),
+      fmtFull(c.price), fmtPPU(c.ppu), fmtCap(c.cap), fmtPSF(c.psf),
     ]);
 
+    // Averages: sale price and units are straight averages; year built and cap rate are unit-weighted;
+    // $/unit = total price / total units; $/SF = total price / total SF (SF implied as price / $/SF).
     const avgPrice = simpleAvg(selectedComps, 'price');
-    const wAvgPPU = weightedAvg(selectedComps, 'ppu');
-    const wAvgPSF = weightedAvg(selectedComps, 'psf');
-    const avgCap = simpleAvg(selectedComps, 'cap');
-    const avgYear = simpleAvg(selectedComps, 'yearBuilt');
     const avgUnits = simpleAvg(selectedComps, 'units');
+    const avgYear = weightedAvg(selectedComps, 'yearBuilt');
+    const avgCap = weightedAvg(selectedComps, 'cap');
+    const ppuSet = selectedComps.filter(c => c.price != null && c.units);
+    const wAvgPPU = ppuSet.length ? ppuSet.reduce((a, c) => a + c.price, 0) / ppuSet.reduce((a, c) => a + c.units, 0) : null;
+    const psfSet = selectedComps.filter(c => c.price != null && c.psf);
+    const wAvgPSF = psfSet.length ? psfSet.reduce((a, c) => a + c.price, 0) / psfSet.reduce((a, c) => a + c.price / c.psf, 0) : null;
 
-    const avgRow = ['', 'COMP AVERAGES', '', '', avgUnits != null ? Math.round(avgUnits).toString() : NA, avgYear != null ? Math.round(avgYear).toString() : NA, fmtPrice(avgPrice), fmtPPU(wAvgPPU), fmtCap(avgCap), fmtPSF(wAvgPSF)];
-    const subjRow = hasSubject ? ['', 'SUBJECT PROPERTY', subj.addr || '', '', subj.units != null ? String(subj.units) : NA, subj.year != null ? String(subj.year) : NA, fmtPrice(subj.price), fmtPPU(subj.ppu), fmtCap(subj.cap), fmtPSF(subj.psf)] : null;
+    const avgRow = ['', 'COMP AVERAGES', '', '', avgUnits != null ? Math.round(avgUnits).toString() : NA, avgYear != null ? Math.round(avgYear).toString() : NA, fmtFull(avgPrice), fmtPPU(wAvgPPU), fmtCap(avgCap), fmtPSF(wAvgPSF)];
+    const subjRow = hasSubject ? ['', 'SUBJECT PROPERTY', subj.addr || '', '', subj.units != null ? String(subj.units) : NA, subj.year != null ? String(subj.year) : NA, fmtFull(subj.price), fmtPPU(subj.ppu), fmtCap(subj.cap), fmtPSF(subj.psf)] : null;
 
     pdf.autoTable({
       startY: y,
@@ -1087,12 +1092,17 @@ async function generatePDF() {
       footStyles: { fillColor: [247, 244, 238], textColor: [13, 31, 53], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 8, right: 6, bottom: 8, left: 6 } },
       columnStyles: {
         0: { cellWidth: 24, halign: 'center', textColor: [138, 155, 173] },
-        1: { cellWidth: 130 }, 2: { cellWidth: 165 },
+        1: { cellWidth: 140 }, 2: { cellWidth: 170 },
         3: { cellWidth: 56, halign: 'center' }, 4: { cellWidth: 40, halign: 'center' },
-        5: { cellWidth: 40, halign: 'center' }, 6: { cellWidth: 64, halign: 'right' },
+        5: { cellWidth: 40, halign: 'center' }, 6: { cellWidth: 82, halign: 'right' },
         7: { cellWidth: 56, halign: 'right' }, 8: { cellWidth: 52, halign: 'right' }, 9: { cellWidth: 40, halign: 'right' },
       },
       didParseCell: (data) => {
+        // Header (Sale Price onward) and footer rows use the same alignment as the comp rows
+        const ALIGN = { 0: 'center', 3: 'center', 4: 'center', 5: 'center', 6: 'right', 7: 'right', 8: 'right', 9: 'right' };
+        const col = data.column.index;
+        if (data.section === 'head' && col >= 6) data.cell.styles.halign = 'right';
+        if (data.section === 'foot' && ALIGN[col]) data.cell.styles.halign = ALIGN[col];
         if (data.section === 'foot' && subjRow && data.row.index === 1) { data.cell.styles.fillColor = [200, 153, 58]; data.cell.styles.textColor = [255, 255, 255]; }
         if (data.section === 'body' && data.row.index % 2 === 1) { data.cell.styles.fillColor = [251, 250, 247]; }
       },
@@ -1100,6 +1110,7 @@ async function generatePDF() {
 
     pdf.setTextColor(138, 155, 173); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
     pdf.text(`Generated by CompTrack · ${selectedComps.length} comparables`, margin, pageH - 16);
+    pdf.text('Comp averages: sale price and units are straight averages; year built and cap rate are weighted by units; $/Unit = total price / total units; $/SF = total price / total SF.', margin, pageH - 28);
     pdf.text('Page 1', pageW - margin, pageH - 16, { align: 'right' });
 
     if (hasSubjectMap) {
