@@ -199,6 +199,92 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .leaflet-control-attribution { font-size: 9px !important; background: rgba(255,255,255,0.7) !important; }
+
+  /* ---- shared refinements ---- */
+  body { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  :root { --line: #E8E4DC; --fill: #F4F2ED; --gold-ink: #9A7224; }
+  .comp-item { padding: 12px 20px; border-bottom: 1px solid #F0EDE6; }
+  .comp-item.active { background: #F6F0E3; border-left: none; padding-left: 20px; box-shadow: inset 3px 0 0 var(--gold); }
+  .ci-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .ci-name { font-size: 13.5px; font-weight: 600; color: var(--navy); line-height: 1.3; }
+  .ci-price { font-size: 13.5px; font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .ci-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .ci-ppu { font-size: 12px; font-weight: 600; color: var(--gold-ink); white-space: nowrap; }
+  .ci-meta { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
+  .stat-label { text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text2); }
+  .stat-val { font-size: 17px; letter-spacing: -0.2px; }
+
+  .actions-wrap { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 8px; padding: 12px 20px 14px; }
+  .action-btn { height: 36px; font-size: 12px; border-radius: 8px; }
+  .action-btn.ghost { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+  .action-btn.ghost:hover { border-color: var(--navy); }
+  .action-btn.primary { background: var(--navy); color: #fff; }
+
+  .map-controls { gap: 10px; }
+  .mc-group { display: flex; flex-direction: column; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(13,31,53,0.12); border: 1px solid rgba(13,31,53,0.08); }
+  .mc-group .map-btn { border: 0; border-radius: 0; box-shadow: none; width: 38px; height: 38px; }
+  .mc-group .map-btn + .map-btn { border-top: 1px solid var(--line); }
+  .map-btn.active { background: var(--navy); color: #fff; }
+
+  .popup-grid { gap: 12px 16px; }
+  .popup-stat-label { text-transform: none; letter-spacing: 0; font-size: 10.5px; }
+  .popup-stat-val { font-size: 15px; }
+
+
+  /* ===== Design C — Navy panel: all controls in a dark sidebar, map gets the full height ===== */
+  :root { --sidebar-width: 400px; --dk-line: rgba(255,255,255,0.09); --dk-fill: rgba(255,255,255,0.07); --dk-text2: rgba(255,255,255,0.62); --dk-text3: rgba(255,255,255,0.42); }
+  .sidebar { background: var(--navy); color: #fff; border-right: 0; }
+  .logo { color: #fff; }
+  .header { padding: 20px 20px 14px; border-bottom: 0; }
+  .search-wrap input { height: 40px; border-radius: 8px; background: var(--dk-fill); border: 1px solid var(--dk-line); color: #fff; }
+  .search-wrap input::placeholder { color: var(--dk-text3); }
+  .search-wrap input:focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.35); }
+  .search-wrap svg { filter: invert(1); opacity: 0.45; }
+
+  .filter-bar { position: relative; z-index: 20; background: transparent; border: 0; box-shadow: none; width: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; padding: 2px 20px 16px; border-bottom: 1px solid var(--dk-line); }
+  body.sidebar-hidden .filter-bar { padding-left: 20px; }
+  .filter-group:first-child { grid-column: 1 / -1; }
+  .filter-group { gap: 6px; }
+  .filter-label { color: var(--dk-text3); text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 500; padding: 0; }
+  .filter-controls { width: 100%; }
+  .filter-combo, .filter-combo-months { flex: 1; width: auto; }
+  .filter-combo-wide { width: 100%; }
+  .filter-combo input { height: 34px; border-radius: 8px; background: var(--dk-fill); border: 1px solid var(--dk-line); color: #fff; }
+  .filter-combo input::placeholder { color: var(--dk-text3); }
+  .filter-combo input:focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.35); }
+  .filter-combo .caret, .filter-combo .unit, .filter-sep { color: var(--dk-text3); }
+  .filter-combo.has-value input { background: rgba(200,153,58,0.14); border-color: var(--gold); color: #fff; }
+  .filter-combo-menu { z-index: 30; }
+  .filter-clear { align-self: end; height: 34px; border-radius: 8px; background: transparent; border: 1px solid var(--dk-line); color: var(--dk-text3); }
+  .filter-clear.active { color: var(--gold); border-color: rgba(200,153,58,0.5); }
+
+  .stats-bar { border-bottom: 1px solid var(--dk-line); }
+  .stat { border-right: 1px solid var(--dk-line); padding: 12px 20px; }
+  .stat-label { color: var(--dk-text3); }
+  .stat-val { color: #fff; }
+  .comp-item { border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .comp-item:hover { background: rgba(255,255,255,0.04); }
+  .comp-item.active { background: rgba(200,153,58,0.13); }
+  .ci-name, .ci-price { color: #fff; }
+  .ci-sub { color: var(--dk-text2); }
+  .ci-ppu { color: var(--gold); }
+  .ci-meta { color: var(--dk-text3); }
+  .comp-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+  .empty-state { color: var(--dk-text3); }
+  .actions-wrap { border-top: 1px solid var(--dk-line); }
+  .action-btn.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+  .action-btn.ghost:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
+  .action-btn.primary { background: var(--gold); color: var(--navy); font-weight: 600; }
+  .action-btn.primary:hover { background: #D6A848; }
+
+  .sidebar-toggle { width: 18px; height: 52px; background: #fff; color: var(--navy); box-shadow: 2px 0 8px rgba(13,31,53,0.18); font-size: 14px; }
+  .sidebar-toggle:hover { width: 22px; background: var(--gold); color: var(--navy); }
+  .subject-panel { top: 16px; left: 34px; width: 320px; padding: 5px; border-radius: 10px; border-color: rgba(13,31,53,0.08); box-shadow: 0 2px 10px rgba(13,31,53,0.14); }
+  .subject-title { display: none; }
+  .subject-input { height: 34px; background: transparent; border: 0; font-size: 13px; }
+  .subject-btn { height: 34px; border-radius: 7px; padding: 0 14px; }
+  .subject-info { padding: 2px 8px 5px; }
+
 </style>
 </head>
 <body>
@@ -216,22 +302,6 @@
         <input type="text" id="searchInput" placeholder="Search property, buyer, seller, submarket...">
       </div>
     </div>
-    <div class="stats-bar" id="statsBar"></div>
-    <div class="comp-list" id="compList"></div>
-    <div class="actions-wrap">
-      <button class="action-btn primary" onclick="openAddModal()">
-        <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
-        Add comp
-      </button>
-      <button class="action-btn outline" onclick="openExportModal()">CSV</button>
-      <button class="action-btn gold" onclick="openPdfModal()" style="flex: 1 1 100%;">
-        <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3.5 6l3 3 3-3M1 10.5h11" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Export to PDF
-      </button>
-    </div>
-  </div>
-
-  <div class="map-wrap">
     <div class="filter-bar">
       <div class="filter-group">
         <span class="filter-label">Market</span>
@@ -335,23 +405,35 @@
 
       <button type="button" class="filter-clear" id="clearFiltersBtn" onclick="clearAllFilters()">Clear filters</button>
     </div>
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="comp-list" id="compList"></div>
+    <div class="actions-wrap">
+      <button class="action-btn ghost" onclick="openAddModal()">+ Add comp</button>
+      <button class="action-btn ghost" onclick="openExportModal()">Export CSV</button>
+      <button class="action-btn primary" onclick="openPdfModal()">PDF report</button>
+    </div>
+  </div>
 
+  <div class="map-wrap">
     <div class="map-area">
       <div id="map"></div>
       <div class="subject-panel">
         <div class="subject-title">Subject Property</div>
         <div class="subject-input-row">
-          <input type="text" class="subject-input" id="subjectInput" placeholder="Enter address or lat,lng" onkeydown="if(event.key==='Enter')setSubjectProperty()">
+          <input type="text" class="subject-input" id="subjectInput" placeholder="Subject property: address or lat,lng" onkeydown="if(event.key==='Enter')setSubjectProperty()">
           <button class="subject-btn" onclick="setSubjectProperty()">Set</button>
         </div>
         <div class="subject-info" id="subjectInfo"></div>
       </div>
       <div class="map-controls">
-        <button class="map-btn" title="Zoom in" onclick="map.zoomIn()">+</button>
-        <button class="map-btn" title="Zoom out" onclick="map.zoomOut()">−</button>
-        <button class="map-btn" title="Reset view" onclick="resetView()" style="font-size:14px;">⌖</button>
-        <button class="map-btn" title="Toggle satellite" onclick="toggleSatellite()" id="satBtn"><span class="map-btn-label">SAT</span></button>
-      </div>
+        <div class="mc-group">
+          <button class="map-btn" title="Zoom in" onclick="map.zoomIn()">+</button>
+          <button class="map-btn" title="Zoom out" onclick="map.zoomOut()">−</button>
+        </div>
+        <div class="mc-group">
+          <button class="map-btn" title="Fit all comps" onclick="resetView()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
+          <button class="map-btn" title="Toggle satellite" onclick="toggleSatellite()" id="satBtn"><span class="map-btn-label">SAT</span></button>
+        </div>
     </div>
   </div>
 </div>
@@ -609,11 +691,13 @@ function renderList() {
   const list = document.getElementById('compList');
   if (visibleComps.length === 0) { list.innerHTML = '<div class="empty-state">No comps in this view.<br><span style="color:var(--text2);">Try zooming out or clearing filters.</span></div>'; return; }
   list.innerHTML = visibleComps.map(c => {
-    const tags = [];
-    if (c.units != null) tags.push(`<span class="tag tag-gray">${c.units}u</span>`);
-    if (c.yearBuilt) tags.push(`<span class="tag tag-gray">${c.yearBuilt}</span>`);
-    if (c.cap != null) tags.push(`<span class="tag tag-gold">${fmtCap(c.cap)}</span>`);
-    return `<div class="comp-item ${selectedId === c.id ? 'active' : ''}" onclick="selectComp(${c.id}, true)"><div class="comp-top"><div class="comp-name">${c.name}</div><div class="comp-price-block"><div class="comp-price">${fmtPrice(c.price)}</div>${c.ppu != null ? `<div class="comp-ppu">${fmtPPU(c.ppu)}/unit</div>` : ''}</div></div><div class="comp-addr">${c.submarket || ''} · ${fmtDate(c.date)}</div><div class="comp-tags">${tags.join('')}</div></div>`;
+    const sub = [c.submarket, c.date ? fmtDate(c.date) : ''].filter(Boolean).join(' · ');
+    const meta = [c.units != null ? c.units + ' units' : '', c.yearBuiltRaw ? 'Built ' + c.yearBuiltRaw : '', c.cap != null ? fmtCap(c.cap) + ' cap' : ''].filter(Boolean).join(' · ');
+    return `<div class="comp-item ${selectedId === c.id ? 'active' : ''}" onclick="selectComp(${c.id}, true)">
+      <div class="ci-row"><div class="ci-name">${c.name}</div><div class="ci-price">${fmtPrice(c.price)}</div></div>
+      <div class="ci-row"><div class="ci-sub">${sub}</div>${c.ppu != null ? `<div class="ci-ppu">${fmtPPU(c.ppu)}/unit</div>` : ''}</div>
+      ${meta ? `<div class="ci-meta">${meta}</div>` : ''}
+    </div>`;
   }).join('');
 }
 
