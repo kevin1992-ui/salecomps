@@ -1,0 +1,33 @@
+name: Geocode new comps
+
+# Runs whenever comps.csv changes on main (or manually from the Actions tab).
+on:
+  push:
+    branches: [main]
+    paths: [comps.csv]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  geocode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fill missing lat/lng
+        run: python scripts/geocode.py
+      - name: Commit coordinates
+        run: |
+          git config user.name "comptrack-bot"
+          git config user.email "comptrack-bot@users.noreply.github.com"
+          git add comps.csv geocode_failures.csv
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "Geocode new comps"
+            git push
+          fi
