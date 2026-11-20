@@ -255,8 +255,12 @@
   .filter-combo .caret, .filter-combo .unit, .filter-sep { color: var(--dk-text3); }
   .filter-combo.has-value input { background: rgba(200,153,58,0.14); border-color: var(--gold); color: #fff; }
   .filter-combo-menu { z-index: 30; }
-  .filter-clear { align-self: end; height: 34px; border-radius: 8px; background: transparent; border: 1px solid var(--dk-line); color: var(--dk-text3); }
-  .filter-clear.active { color: var(--gold); border-color: rgba(200,153,58,0.5); }
+  .filter-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .filter-clear { height: auto; padding: 0; border: 0; background: none; font-size: 11.5px; font-weight: 500; color: var(--gold); visibility: hidden; }
+  .filter-clear.active { visibility: visible; cursor: pointer; }
+  .filter-clear.active:hover { background: none; color: #fff; text-decoration: underline; }
+  .filter-combo .unit { right: 24px; }
+  .filter-combo:has(.unit) input { padding-right: 38px; }
 
   .stats-bar { border-bottom: 1px solid var(--dk-line); }
   .stat { border-right: 1px solid var(--dk-line); padding: 12px 20px; }
@@ -304,7 +308,7 @@
     </div>
     <div class="filter-bar">
       <div class="filter-group">
-        <span class="filter-label">Market</span>
+        <div class="filter-label-row"><span class="filter-label">Market</span><button type="button" class="filter-clear" id="clearFiltersBtn" onclick="clearAllFilters()">Clear filters</button></div>
         <div class="filter-controls">
         <div class="filter-combo filter-combo-wide">
           <input type="text" id="filterMarket" placeholder="All markets" readonly autocomplete="off" onclick="toggleCombo('market', event)">
@@ -403,7 +407,41 @@
         </div>
       </div>
 
-      <button type="button" class="filter-clear" id="clearFiltersBtn" onclick="clearAllFilters()">Clear filters</button>
+      <div class="filter-group">
+        <span class="filter-label">Cap rate</span>
+        <div class="filter-controls">
+        <div class="filter-combo">
+          <input type="number" id="filterCapMin" placeholder="min" min="0" max="20" step="0.05" oninput="applyFilters()" autocomplete="off">
+          <span class="unit">%</span>
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('capMin', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-capMin">
+            <div class="opt" onclick="setComboValue('filterCapMin', '4.0')">4.0%+</div>
+            <div class="opt" onclick="setComboValue('filterCapMin', '4.5')">4.5%+</div>
+            <div class="opt" onclick="setComboValue('filterCapMin', '5.0')">5.0%+</div>
+            <div class="opt" onclick="setComboValue('filterCapMin', '5.5')">5.5%+</div>
+            <div class="opt" onclick="setComboValue('filterCapMin', '6.0')">6.0%+</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterCapMin', '')">Clear</div>
+          </div>
+        </div>
+        <span class="filter-sep">–</span>
+        <div class="filter-combo">
+          <input type="number" id="filterCapMax" placeholder="max" min="0" max="20" step="0.05" oninput="applyFilters()" autocomplete="off">
+          <span class="unit">%</span>
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('capMax', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-capMax">
+            <div class="opt" onclick="setComboValue('filterCapMax', '4.5')">≤ 4.5%</div>
+            <div class="opt" onclick="setComboValue('filterCapMax', '5.0')">≤ 5.0%</div>
+            <div class="opt" onclick="setComboValue('filterCapMax', '5.5')">≤ 5.5%</div>
+            <div class="opt" onclick="setComboValue('filterCapMax', '6.0')">≤ 6.0%</div>
+            <div class="opt" onclick="setComboValue('filterCapMax', '7.0')">≤ 7.0%</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterCapMax', '')">Clear</div>
+          </div>
+        </div>
+        </div>
+      </div>
+
     </div>
     <div class="stats-bar" id="statsBar"></div>
     <div class="comp-list" id="compList"></div>
@@ -718,8 +756,10 @@ function applyFilters() {
   const unitsMax = parseFloat(document.getElementById('filterUnitsMax').value);
   const yearMin = parseFloat(document.getElementById('filterYearMin').value);
   const yearMax = parseFloat(document.getElementById('filterYearMax').value);
+  const capMin = parseFloat(document.getElementById('filterCapMin').value);
+  const capMax = parseFloat(document.getElementById('filterCapMax').value);
   let activeCount = 0;
-  ['filterMarket','filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax'].forEach(id => {
+  ['filterMarket','filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax','filterCapMin','filterCapMax'].forEach(id => {
     const el = document.getElementById(id);
     const on = id === 'filterMarket' ? !!el.dataset.value : el.value !== '';
     el.closest('.filter-combo').classList.toggle('has-value', on);
@@ -737,6 +777,8 @@ function applyFilters() {
     if (!isNaN(unitsMax)) { if (c.units == null || c.units > unitsMax) return false; }
     if (!isNaN(yearMin)) { if (!c.yearBuilt || c.yearBuilt < yearMin) return false; }
     if (!isNaN(yearMax)) { if (!c.yearBuilt || c.yearBuilt > yearMax) return false; }
+    if (!isNaN(capMin)) { if (c.cap == null || c.cap < capMin) return false; }
+    if (!isNaN(capMax)) { if (c.cap == null || c.cap > capMax) return false; }
     if (q) { const hay = `${c.name||''} ${c.address||''} ${c.submarket||''} ${c.market||''} ${c.buyer||''} ${c.seller||''}`.toLowerCase(); if (!hay.includes(q)) return false; }
     return true;
   });
@@ -785,7 +827,7 @@ function populateMarketDropdown() {
 }
 
 function clearAllFilters() {
-  ['filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax','searchInput'].forEach(id => document.getElementById(id).value = '');
+  ['filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax','filterCapMin','filterCapMax','searchInput'].forEach(id => document.getElementById(id).value = '');
   // Reset market filter
   const marketInput = document.getElementById('filterMarket');
   marketInput.value = 'All markets';
