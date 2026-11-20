@@ -37,17 +37,20 @@
   .search-wrap input:focus { border-color: var(--navy); background: #fff; }
   .search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); opacity: 0.35; }
 
-  .filter-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 14px 16px; display: flex; align-items: center; justify-content: center; gap: 18px; box-shadow: 0 1px 3px rgba(13,31,53,0.04); z-index: 1000; width: 100%; position: relative; flex-wrap: nowrap; overflow-x: auto; transition: padding 0.25s ease, gap 0.25s ease; }
-  body.sidebar-hidden .filter-bar { padding-left: 50px; padding-right: 24px; gap: 28px; }
-  .filter-bar::-webkit-scrollbar { height: 0; }
-  .filter-group { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 0; }
-  .filter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; white-space: nowrap; }
-  .filter-suffix { font-size: 11px; color: var(--text2); white-space: nowrap; }
-  .filter-sep { color: var(--text3); font-size: 11px; padding: 0 2px; }
-  .filter-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
-
-  .filter-combo { position: relative; width: 80px; flex-shrink: 0; }
-  .filter-combo-wide { width: 140px; }
+  /* Filter bar: labels sit above controls; wraps instead of scrolling so nothing (incl. dropdown menus) is ever clipped */
+  .filter-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 10px 24px 12px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 10px 26px; box-shadow: 0 1px 3px rgba(13,31,53,0.04); z-index: 1000; width: 100%; position: relative; transition: padding 0.25s ease; }
+  body.sidebar-hidden .filter-bar { padding-left: 52px; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+  .filter-controls { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text3); font-weight: 600; white-space: nowrap; padding-left: 2px; }
+  .filter-sep { color: var(--text3); font-size: 11px; }
+  .filter-combo .unit { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text3); pointer-events: none; }
+  .filter-combo.has-value input { border-color: var(--gold); background: #fff; color: var(--navy); font-weight: 500; }
+  .filter-combo.has-value .caret { color: var(--gold); }
+  .filter-combo { position: relative; width: 78px; flex-shrink: 0; }
+  .filter-combo-wide { width: 150px; }
+  .filter-combo-months { width: 100px; }
+  .filter-combo-months input { padding-right: 46px; }
   .filter-combo input[readonly] { cursor: pointer; }
   .filter-combo input { width: 100%; height: 34px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 28px 0 10px; font-size: 12px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; text-align: left; -moz-appearance: textfield; appearance: textfield; transition: border-color 0.15s, background 0.15s; }
   .filter-combo input::-webkit-outer-spin-button, .filter-combo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -61,8 +64,9 @@
   .filter-combo-menu .opt:hover { background: var(--cream); }
   .filter-combo-menu .opt-clear { color: var(--gold); font-weight: 500; border-top: 1px solid var(--border2); }
 
-  .filter-clear { font-size: 11px; color: var(--gold); cursor: pointer; font-weight: 500; padding: 6px 12px; border-radius: var(--r-sm); transition: background 0.15s; white-space: nowrap; }
-  .filter-clear:hover { background: rgba(200,153,58,0.1); }
+  .filter-clear { height: 34px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--text3); cursor: default; white-space: nowrap; transition: all 0.15s; }
+  .filter-clear.active { color: var(--gold); border-color: rgba(200,153,58,0.5); cursor: pointer; }
+  .filter-clear.active:hover { background: var(--gold); color: #fff; border-color: var(--gold); }
 
   .sidebar-toggle { position: fixed; top: 50%; left: var(--sidebar-width); transform: translateY(-50%); background: var(--navy); color: #fff; border: none; width: 28px; height: 64px; border-radius: 0 var(--r-sm) var(--r-sm) 0; cursor: pointer; z-index: 9000; display: flex; align-items: center; justify-content: center; box-shadow: 3px 0 10px rgba(13,31,53,0.3); transition: background 0.15s, width 0.15s, left 0.25s ease; font-size: 16px; font-weight: 700; line-height: 1; padding: 0; font-family: inherit; }
   .sidebar-toggle:hover { background: var(--navy2); width: 34px; }
@@ -231,6 +235,7 @@
     <div class="filter-bar">
       <div class="filter-group">
         <span class="filter-label">Market</span>
+        <div class="filter-controls">
         <div class="filter-combo filter-combo-wide">
           <input type="text" id="filterMarket" placeholder="All markets" readonly autocomplete="off" onclick="toggleCombo('market', event)">
           <span class="caret">▾</span>
@@ -240,15 +245,15 @@
             <!-- market options injected by JS -->
           </div>
         </div>
+        </div>
       </div>
 
-      <div class="filter-divider"></div>
-
       <div class="filter-group">
-        <span class="filter-label">Sale Date</span>
-        <span class="filter-suffix">last</span>
-        <div class="filter-combo">
-          <input type="number" id="filterMonths" placeholder="—" min="1" oninput="applyFilters()" autocomplete="off">
+        <span class="filter-label">Sold in last</span>
+        <div class="filter-controls">
+        <div class="filter-combo filter-combo-months">
+          <input type="number" id="filterMonths" placeholder="Any" min="1" oninput="applyFilters()" autocomplete="off">
+          <span class="unit">mo</span>
           <span class="caret">▾</span>
           <button class="dropdown-toggle" type="button" onclick="toggleCombo('months', event)" tabindex="-1"></button>
           <div class="filter-combo-menu" id="menu-months">
@@ -260,13 +265,12 @@
             <div class="opt opt-clear" onclick="setComboValue('filterMonths', '')">Clear</div>
           </div>
         </div>
-        <span class="filter-suffix">months</span>
+        </div>
       </div>
 
-      <div class="filter-divider"></div>
-
       <div class="filter-group">
-        <span class="filter-label">Unit Count</span>
+        <span class="filter-label">Units</span>
+        <div class="filter-controls">
         <div class="filter-combo">
           <input type="number" id="filterUnitsMin" placeholder="min" min="0" oninput="applyFilters()" autocomplete="off">
           <span class="caret">▾</span>
@@ -293,12 +297,12 @@
             <div class="opt opt-clear" onclick="setComboValue('filterUnitsMax', '')">Clear</div>
           </div>
         </div>
+        </div>
       </div>
 
-      <div class="filter-divider"></div>
-
       <div class="filter-group">
-        <span class="filter-label">Year Built</span>
+        <span class="filter-label">Year built</span>
+        <div class="filter-controls">
         <div class="filter-combo">
           <input type="number" id="filterYearMin" placeholder="min" min="1800" max="2100" oninput="applyFilters()" autocomplete="off">
           <span class="caret">▾</span>
@@ -326,11 +330,10 @@
             <div class="opt opt-clear" onclick="setComboValue('filterYearMax', '')">Clear</div>
           </div>
         </div>
+        </div>
       </div>
 
-      <div class="filter-divider"></div>
-
-      <span class="filter-clear" onclick="clearAllFilters()">Clear filters</span>
+      <button type="button" class="filter-clear" id="clearFiltersBtn" onclick="clearAllFilters()">Clear filters</button>
     </div>
 
     <div class="map-area">
@@ -631,6 +634,16 @@ function applyFilters() {
   const unitsMax = parseFloat(document.getElementById('filterUnitsMax').value);
   const yearMin = parseFloat(document.getElementById('filterYearMin').value);
   const yearMax = parseFloat(document.getElementById('filterYearMax').value);
+  let activeCount = 0;
+  ['filterMarket','filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax'].forEach(id => {
+    const el = document.getElementById(id);
+    const on = id === 'filterMarket' ? !!el.dataset.value : el.value !== '';
+    el.closest('.filter-combo').classList.toggle('has-value', on);
+    if (on) activeCount++;
+  });
+  const clearBtn = document.getElementById('clearFiltersBtn');
+  clearBtn.classList.toggle('active', activeCount > 0);
+  clearBtn.textContent = activeCount ? `Clear filters (${activeCount})` : 'Clear filters';
   let cutoffDate = null;
   if (!isNaN(monthsBack) && monthsBack > 0) { const today = new Date(); cutoffDate = new Date(today.getFullYear(), today.getMonth() - monthsBack, today.getDate()); }
   filteredComps = COMPS.filter(c => {
