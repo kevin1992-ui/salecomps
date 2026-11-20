@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CompTrack — Design A preview</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --navy: #0D1F35; --navy2: #162C45; --gold: #C8993A; --gold-light: #F0D9A0;
+    --cream: #F7F4EE; --cream2: #EDE9E0; --text: #0D1F35; --text2: #5A6A7A; --text3: #8A9BAD;
+    --border: rgba(13,31,53,0.12); --border2: rgba(13,31,53,0.06);
+    --shadow: 0 4px 24px rgba(13,31,53,0.10); --shadow-sm: 0 2px 8px rgba(13,31,53,0.08);
+    --r: 10px; --r-sm: 6px; --sidebar-width: 400px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); }
+  .app { display: flex; height: 100vh; position: relative; }
+  .sidebar { width: var(--sidebar-width); flex-shrink: 0; display: flex; flex-direction: column; background: #fff; border-right: 1px solid var(--border); z-index: 10; overflow: hidden; transition: width 0.25s ease; }
+  .sidebar.collapsed { width: 0; border-right: none; }
+  .map-wrap { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .map-area { flex: 1; position: relative; }
+  #map { width: 100%; height: 100%; background: #E5EAEF; }
+
+  .header { padding: 20px 20px 16px; border-bottom: 1px solid var(--border2); }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--navy); letter-spacing: -0.3px; }
+  .logo span { color: var(--gold); }
+  .search-wrap { position: relative; }
+  .search-wrap input { width: 100%; height: 38px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 12px 0 34px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .search-wrap input:focus { border-color: var(--navy); background: #fff; }
+  .search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); opacity: 0.35; }
+
+  /* Filter bar: labels sit above controls; wraps instead of scrolling so nothing (incl. dropdown menus) is ever clipped */
+  .filter-bar { background: #fff; border-bottom: 1px solid var(--border); padding: 10px 24px 12px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 10px 26px; box-shadow: 0 1px 3px rgba(13,31,53,0.04); z-index: 1000; width: 100%; position: relative; transition: padding 0.25s ease; }
+  body.sidebar-hidden .filter-bar { padding-left: 52px; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+  .filter-controls { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text3); font-weight: 600; white-space: nowrap; padding-left: 2px; }
+  .filter-sep { color: var(--text3); font-size: 11px; }
+  .filter-combo .unit { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text3); pointer-events: none; }
+  .filter-combo.has-value input { border-color: var(--gold); background: #fff; color: var(--navy); font-weight: 500; }
+  .filter-combo.has-value .caret { color: var(--gold); }
+  .filter-combo { position: relative; width: 78px; flex-shrink: 0; }
+  .filter-combo-wide { width: 150px; }
+  .filter-combo-months { width: 100px; }
+  .filter-combo-months input { padding-right: 46px; }
+  .filter-combo input[readonly] { cursor: pointer; }
+  .filter-combo input { width: 100%; height: 34px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 28px 0 10px; font-size: 12px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; text-align: left; -moz-appearance: textfield; appearance: textfield; transition: border-color 0.15s, background 0.15s; }
+  .filter-combo input::-webkit-outer-spin-button, .filter-combo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .filter-combo input:focus { border-color: var(--navy); background: #fff; }
+  .filter-combo input::placeholder { color: var(--text3); }
+  .filter-combo .caret { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text3); font-size: 10px; }
+  .filter-combo .dropdown-toggle { position: absolute; top: 0; bottom: 0; right: 0; width: 22px; background: transparent; border: none; cursor: pointer; }
+  .filter-combo-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); box-shadow: var(--shadow-sm); z-index: 1500; display: none; overflow: hidden; min-width: 100%; max-height: 220px; overflow-y: auto; }
+  .filter-combo-menu.show { display: block; }
+  .filter-combo-menu .opt { padding: 8px 12px; font-size: 12px; cursor: pointer; color: var(--text); transition: background 0.1s; white-space: nowrap; }
+  .filter-combo-menu .opt:hover { background: var(--cream); }
+  .filter-combo-menu .opt-clear { color: var(--gold); font-weight: 500; border-top: 1px solid var(--border2); }
+
+  .filter-clear { height: 34px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--text3); cursor: default; white-space: nowrap; transition: all 0.15s; }
+  .filter-clear.active { color: var(--gold); border-color: rgba(200,153,58,0.5); cursor: pointer; }
+  .filter-clear.active:hover { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+  .sidebar-toggle { position: fixed; top: 50%; left: var(--sidebar-width); transform: translateY(-50%); background: var(--navy); color: #fff; border: none; width: 28px; height: 64px; border-radius: 0 var(--r-sm) var(--r-sm) 0; cursor: pointer; z-index: 9000; display: flex; align-items: center; justify-content: center; box-shadow: 3px 0 10px rgba(13,31,53,0.3); transition: background 0.15s, width 0.15s, left 0.25s ease; font-size: 16px; font-weight: 700; line-height: 1; padding: 0; font-family: inherit; }
+  .sidebar-toggle:hover { background: var(--navy2); width: 34px; }
+  body.sidebar-hidden .sidebar-toggle { left: 0; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border2); }
+  .stat { padding: 12px 14px; border-right: 1px solid var(--border2); }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; font-weight: 500; }
+  .stat-val { font-size: 16px; font-weight: 600; color: var(--navy); }
+
+  .comp-list { flex: 1; overflow-y: auto; }
+  .comp-list::-webkit-scrollbar { width: 5px; }
+  .comp-list::-webkit-scrollbar-track { background: transparent; }
+  .comp-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .comp-item { padding: 14px 20px; border-bottom: 1px solid var(--border2); cursor: pointer; transition: background 0.1s; position: relative; }
+  .comp-item:hover { background: var(--cream); }
+  .comp-item.active { background: #EBF1F8; border-left: 3px solid var(--navy); padding-left: 17px; }
+  .comp-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; gap: 8px; }
+  .comp-name { font-size: 13px; font-weight: 600; color: var(--navy); line-height: 1.3; }
+  .comp-price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
+  .comp-price { font-size: 13px; font-weight: 600; color: var(--gold); white-space: nowrap; }
+  .comp-ppu { font-size: 11px; font-weight: 500; color: var(--gold); white-space: nowrap; }
+  .comp-addr { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+  .comp-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; }
+  .tag-gray { background: var(--cream2); color: var(--text2); }
+  .tag-gold { background: #C8993A18; color: #8A6018; }
+  .empty-state { padding: 40px 20px; text-align: center; color: var(--text3); font-size: 13px; }
+
+  .actions-wrap { padding: 12px 20px; border-top: 1px solid var(--border2); display: flex; gap: 6px; flex-wrap: wrap; }
+  .action-btn { flex: 1 1 calc(50% - 3px); min-width: 0; height: 36px; border: none; border-radius: var(--r-sm); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0 8px; }
+  .action-btn.primary { background: var(--navy); color: #fff; }
+  .action-btn.primary:hover { background: var(--navy2); }
+  .action-btn.gold { background: var(--gold); color: #fff; }
+  .action-btn.gold:hover { background: #A87C28; }
+  .action-btn.outline { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+  .action-btn.outline:hover { background: var(--cream); border-color: var(--navy); }
+
+  .map-controls { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 500; }
+  .map-btn { width: 38px; height: 38px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow-sm); font-size: 16px; font-weight: 500; color: var(--navy); transition: all 0.15s; }
+  .map-btn:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .map-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .map-btn-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; }
+
+  .subject-panel { position: absolute; top: 16px; left: 36px; background: #fff; border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; box-shadow: var(--shadow-sm); z-index: 500; width: 280px; }
+  .subject-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; margin-bottom: 8px; }
+  .subject-input-row { display: flex; gap: 6px; }
+  .subject-input { flex: 1; height: 32px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 10px; font-size: 12px; font-family: inherit; background: var(--cream); color: var(--text); outline: none; }
+  .subject-input:focus { border-color: var(--navy); background: #fff; }
+  .subject-btn { height: 32px; padding: 0 12px; background: var(--navy); color: #fff; border: none; border-radius: var(--r-sm); font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .subject-btn:hover { background: var(--navy2); }
+  .subject-info { margin-top: 8px; font-size: 11px; color: var(--text2); display: none; }
+  .subject-info.show { display: block; }
+  .subject-info strong { color: var(--navy); }
+  .subject-clear { margin-left: 8px; color: var(--gold); cursor: pointer; font-weight: 500; }
+
+  .comp-marker { background: var(--navy); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); width: 14px; height: 14px; cursor: pointer; transition: transform 0.15s; }
+  .comp-marker:hover { transform: scale(1.4); }
+  .comp-marker.selected { background: var(--gold) !important; transform: scale(1.5); border-color: #fff; box-shadow: 0 0 0 4px rgba(200,153,58,0.3), 0 2px 8px rgba(0,0,0,0.3); }
+  .subject-marker { background: var(--gold); border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 3px rgba(200,153,58,0.25), 0 2px 8px rgba(0,0,0,0.4); width: 22px; height: 22px; }
+
+  /* Cluster bubbles - the SVG inside handles all visuals; wrapper just needs to be transparent */
+  .ct-cluster-wrapper {
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .ct-cluster-wrapper:hover { transform: scale(1.08); }
+
+  .leaflet-popup-content-wrapper { border-radius: var(--r) !important; padding: 0 !important; overflow: hidden; box-shadow: var(--shadow) !important; border: 1px solid var(--border); }
+  .leaflet-popup-content { margin: 0 !important; min-width: 280px; font-family: 'DM Sans', sans-serif; }
+  .leaflet-popup-tip { background: var(--navy); }
+  .leaflet-popup-close-button { font-size: 20px !important; padding: 6px 10px !important; color: #fff !important; opacity: 0.7; }
+  .leaflet-popup-close-button:hover { opacity: 1; }
+  .popup-header { background: var(--navy); color: #fff; padding: 14px 16px; }
+  .popup-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; padding-right: 20px; line-height: 1.3; }
+  .popup-addr { font-size: 11px; opacity: 0.75; margin-bottom: 6px; }
+  .popup-meta-header { font-size: 11px; opacity: 0.85; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.15); }
+  .popup-meta-header strong { font-weight: 500; }
+  .popup-body { padding: 14px 16px; background: #fff; }
+  .popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .popup-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 2px; font-weight: 500; }
+  .popup-stat-val { font-size: 14px; font-weight: 600; color: var(--navy); }
+  .popup-meta { font-size: 11px; color: var(--text2); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border2); line-height: 1.6; }
+  .popup-meta strong { color: var(--navy); font-weight: 500; }
+  .popup-notes { font-size: 11px; color: var(--text2); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border2); line-height: 1.45; font-style: italic; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(13,31,53,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(13,31,53,0.25); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--navy); }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text3); line-height: 1; padding: 0 8px; }
+  .modal-close:hover { color: var(--navy); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
+  .form-field input, .form-field select, .form-field textarea { font-family: inherit; font-size: 13px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 9px 12px; outline: none; background: var(--cream); color: var(--text); transition: border-color 0.15s; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--navy); background: #fff; }
+  .form-field textarea { resize: vertical; min-height: 70px; }
+  .form-section { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); font-weight: 600; grid-column: 1 / -1; margin-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border2); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border2); }
+  .btn-cancel { background: none; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 18px; height: 40px; font-family: inherit; font-size: 13px; cursor: pointer; color: var(--text2); }
+  .btn-cancel:hover { background: var(--cream); }
+  .btn-save { background: var(--navy); color: #fff; border: none; border-radius: var(--r-sm); padding: 0 22px; height: 40px; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-save:hover { background: var(--navy2); }
+  .hint { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .csv-output { background: var(--cream); border-radius: var(--r-sm); padding: 14px; font-family: 'SF Mono', Menlo, Monaco, monospace; font-size: 11px; color: var(--text); white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto; border: 1px solid var(--border); }
+
+  .pdf-comp-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--cream); margin-top: 8px; }
+  .pdf-comp-row { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border2); font-size: 12px; gap: 10px; cursor: pointer; transition: background 0.1s; }
+  .pdf-comp-row:last-child { border-bottom: none; }
+  .pdf-comp-row:hover { background: #fff; }
+  .pdf-comp-row input[type="checkbox"] { margin: 0; width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; accent-color: var(--navy); }
+  .pdf-comp-row .pdf-comp-name { font-weight: 500; color: var(--navy); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pdf-comp-row .pdf-comp-meta { color: var(--text2); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+  .pdf-list-controls { display: flex; gap: 12px; font-size: 11px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+  .pdf-list-controls a { color: var(--gold); cursor: pointer; font-weight: 500; }
+  .pdf-list-controls a:hover { text-decoration: underline; }
+  .pdf-list-count { margin-left: auto; color: var(--text2); }
+
+  #pdfMapContainer { position: fixed; top: -9999px; left: -9999px; width: 1100px; height: 700px; z-index: -1; }
+
+  .loading-overlay { position: fixed; inset: 0; background: rgba(13,31,53,0.4); z-index: 10000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+  .loading-overlay.show { display: flex; }
+  .loading-box { background: #fff; padding: 28px 36px; border-radius: var(--r); box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; }
+  .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .leaflet-control-attribution { font-size: 9px !important; background: rgba(255,255,255,0.7) !important; }
+
+  /* ---- shared refinements ---- */
+  body { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  :root { --line: #E8E4DC; --fill: #F4F2ED; --gold-ink: #9A7224; }
+  .comp-item { padding: 12px 20px; border-bottom: 1px solid #F0EDE6; }
+  .comp-item.active { background: #F6F0E3; border-left: none; padding-left: 20px; box-shadow: inset 3px 0 0 var(--gold); }
+  .ci-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .ci-name { font-size: 13.5px; font-weight: 600; color: var(--navy); line-height: 1.3; }
+  .ci-price { font-size: 13.5px; font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .ci-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .ci-ppu { font-size: 12px; font-weight: 600; color: var(--gold-ink); white-space: nowrap; }
+  .ci-meta { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
+  .stat-label { text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text2); }
+  .stat-val { font-size: 17px; letter-spacing: -0.2px; }
+
+  .actions-wrap { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 8px; padding: 12px 20px 14px; }
+  .action-btn { height: 36px; font-size: 12px; border-radius: 8px; }
+  .action-btn.ghost { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+  .action-btn.ghost:hover { border-color: var(--navy); }
+  .action-btn.primary { background: var(--navy); color: #fff; }
+
+  .map-controls { gap: 10px; }
+  .mc-group { display: flex; flex-direction: column; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(13,31,53,0.12); border: 1px solid rgba(13,31,53,0.08); }
+  .mc-group .map-btn { border: 0; border-radius: 0; box-shadow: none; width: 38px; height: 38px; }
+  .mc-group .map-btn + .map-btn { border-top: 1px solid var(--line); }
+  .map-btn.active { background: var(--navy); color: #fff; }
+
+  .popup-grid { gap: 12px 16px; }
+  .popup-stat-label { text-transform: none; letter-spacing: 0; font-size: 10.5px; }
+  .popup-stat-val { font-size: 15px; }
+
+  .pv-bar { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 9500; display: flex; align-items: center; gap: 4px; padding: 5px; background: rgba(13,31,53,0.92); border-radius: 99px; box-shadow: 0 6px 24px rgba(13,31,53,0.3); font: 500 12px 'DM Sans', sans-serif; }
+  .pv-bar span { color: rgba(255,255,255,0.55); padding: 0 8px 0 10px; }
+  .pv-bar a { color: #fff; text-decoration: none; padding: 6px 12px; border-radius: 99px; white-space: nowrap; }
+  .pv-bar a:hover { background: rgba(255,255,255,0.1); }
+  .pv-bar a.on { background: var(--gold); color: var(--navy); font-weight: 600; }
+
+  .filter-bar { justify-content: flex-start; align-items: center; gap: 8px 22px; padding: 10px 20px; box-shadow: none; }
+  .filter-group { flex-direction: row; align-items: center; gap: 8px; }
+  .filter-label { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 500; color: var(--text2); padding: 0; }
+  .filter-combo input { height: 32px; border-radius: 8px; background: var(--fill); border-color: transparent; }
+  .filter-combo input:focus { background: #fff; border-color: var(--navy); }
+  .filter-combo.has-value input { background: #FBF5E7; border-color: var(--gold); }
+  .filter-clear { height: 32px; border: 0; background: none; padding: 0 6px; margin-left: auto; }
+  .filter-clear.active:hover { background: none; color: var(--navy); }
+
+  /* ===== Design A — Clean: same layout, less chrome ===== */
+  :root { --sidebar-width: 380px; }
+  .sidebar { border-right: 1px solid var(--line); }
+  .header { padding: 18px 20px 12px; border-bottom: 0; }
+  .header-top { margin-bottom: 12px; }
+  .search-wrap input { height: 40px; border-radius: 8px; background: var(--fill); border-color: transparent; }
+  .search-wrap input:focus { background: #fff; border-color: var(--navy); }
+  .stats-bar { margin: 2px 20px 8px; border: 1px solid var(--line); border-radius: 10px; }
+  .stat { padding: 10px 12px; border-right: 1px solid var(--line); }
+  .actions-wrap { border-top: 1px solid var(--line); }
+  .filter-bar { border-bottom: 1px solid var(--line); }
+  body.sidebar-hidden .filter-bar { padding-left: 44px; }
+  .sidebar-toggle { width: 18px; height: 52px; background: #fff; color: var(--navy); border: 1px solid var(--line); border-left: 0; box-shadow: 2px 0 6px rgba(13,31,53,0.08); font-size: 14px; }
+  .sidebar-toggle:hover { width: 22px; background: var(--navy); color: #fff; }
+  .subject-panel { top: 14px; left: 34px; width: 320px; padding: 5px; border-radius: 10px; border-color: rgba(13,31,53,0.08); box-shadow: 0 2px 10px rgba(13,31,53,0.12); }
+  .subject-title { display: none; }
+  .subject-input { height: 34px; background: transparent; border: 0; font-size: 13px; }
+  .subject-btn { height: 34px; border-radius: 7px; padding: 0 14px; }
+  .subject-info { padding: 2px 8px 5px; }
+
+</style>
+</head>
+<body>
+
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Hide/show sidebar">‹</button>
+
+<div class="app">
+  <div class="sidebar" id="sidebar">
+    <div class="header">
+      <div class="header-top">
+        <div class="logo">Comp<span>Track</span></div>
+      </div>
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#0D1F35" stroke-width="1.5"/><path d="M10 10l2.5 2.5" stroke="#0D1F35" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search property, buyer, seller, submarket...">
+      </div>
+    </div>
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="comp-list" id="compList"></div>
+    <div class="actions-wrap">
+      <button class="action-btn ghost" onclick="openAddModal()">+ Add comp</button>
+      <button class="action-btn ghost" onclick="openExportModal()">Export CSV</button>
+      <button class="action-btn primary" onclick="openPdfModal()">PDF report</button>
+    </div>
+  </div>
+
+  <div class="map-wrap">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">Market</span>
+        <div class="filter-controls">
+        <div class="filter-combo filter-combo-wide">
+          <input type="text" id="filterMarket" placeholder="All markets" readonly autocomplete="off" onclick="toggleCombo('market', event)">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('market', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-market">
+            <div class="opt" onclick="setMarketFilter('')">All markets</div>
+            <!-- market options injected by JS -->
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Sold in last</span>
+        <div class="filter-controls">
+        <div class="filter-combo filter-combo-months">
+          <input type="number" id="filterMonths" placeholder="Any" min="1" oninput="applyFilters()" autocomplete="off">
+          <span class="unit">mo</span>
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('months', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-months">
+            <div class="opt" onclick="setComboValue('filterMonths', '6')">6 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '12')">12 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '24')">24 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '36')">36 months</div>
+            <div class="opt" onclick="setComboValue('filterMonths', '60')">60 months</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterMonths', '')">Clear</div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Units</span>
+        <div class="filter-controls">
+        <div class="filter-combo">
+          <input type="number" id="filterUnitsMin" placeholder="min" min="0" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('unitsMin', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-unitsMin">
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '50')">50+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '100')">100+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '150')">150+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '200')">200+</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMin', '300')">300+</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterUnitsMin', '')">Clear</div>
+          </div>
+        </div>
+        <span class="filter-sep">–</span>
+        <div class="filter-combo">
+          <input type="number" id="filterUnitsMax" placeholder="max" min="0" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('unitsMax', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-unitsMax">
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '100')">≤ 100</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '200')">≤ 200</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '300')">≤ 300</div>
+            <div class="opt" onclick="setComboValue('filterUnitsMax', '500')">≤ 500</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterUnitsMax', '')">Clear</div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Year built</span>
+        <div class="filter-controls">
+        <div class="filter-combo">
+          <input type="number" id="filterYearMin" placeholder="min" min="1800" max="2100" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('yearMin', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-yearMin">
+            <div class="opt" onclick="setComboValue('filterYearMin', '1980')">1980+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '1990')">1990+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2000')">2000+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2010')">2010+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2015')">2015+</div>
+            <div class="opt" onclick="setComboValue('filterYearMin', '2020')">2020+</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterYearMin', '')">Clear</div>
+          </div>
+        </div>
+        <span class="filter-sep">–</span>
+        <div class="filter-combo">
+          <input type="number" id="filterYearMax" placeholder="max" min="1800" max="2100" oninput="applyFilters()" autocomplete="off">
+          <span class="caret">▾</span>
+          <button class="dropdown-toggle" type="button" onclick="toggleCombo('yearMax', event)" tabindex="-1"></button>
+          <div class="filter-combo-menu" id="menu-yearMax">
+            <div class="opt" onclick="setComboValue('filterYearMax', '1990')">≤ 1990</div>
+            <div class="opt" onclick="setComboValue('filterYearMax', '2000')">≤ 2000</div>
+            <div class="opt" onclick="setComboValue('filterYearMax', '2010')">≤ 2010</div>
+            <div class="opt" onclick="setComboValue('filterYearMax', '2020')">≤ 2020</div>
+            <div class="opt opt-clear" onclick="setComboValue('filterYearMax', '')">Clear</div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <button type="button" class="filter-clear" id="clearFiltersBtn" onclick="clearAllFilters()">Clear filters</button>
+    </div>
+
+    <div class="map-area">
+      <div id="map"></div>
+      <div class="subject-panel">
+        <div class="subject-title">Subject Property</div>
+        <div class="subject-input-row">
+          <input type="text" class="subject-input" id="subjectInput" placeholder="Subject property: address or lat,lng" onkeydown="if(event.key==='Enter')setSubjectProperty()">
+          <button class="subject-btn" onclick="setSubjectProperty()">Set</button>
+        </div>
+        <div class="subject-info" id="subjectInfo"></div>
+      </div>
+      <div class="map-controls">
+        <div class="mc-group">
+          <button class="map-btn" title="Zoom in" onclick="map.zoomIn()">+</button>
+          <button class="map-btn" title="Zoom out" onclick="map.zoomOut()">−</button>
+        </div>
+        <div class="mc-group">
+          <button class="map-btn" title="Fit all comps" onclick="resetView()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
+          <button class="map-btn" title="Toggle satellite" onclick="toggleSatellite()" id="satBtn"><span class="map-btn-label">SAT</span></button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div id="addModal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Add sale comp</div><button class="modal-close" onclick="closeModal()">×</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;">Fill in what you have — leave blanks where you don't. Or just send the details to Claude in your CompTrack project. After saving, you'll get a CSV row to paste into your <code style="background:var(--cream);padding:1px 5px;border-radius:3px;font-size:11px;">comps.csv</code> on GitHub.</p>
+    <div class="form-grid">
+      <div class="form-section">Property details</div>
+      <div class="form-field full"><label>Property name *</label><input type="text" id="f_name" placeholder="The Residences at Silver Lake"></div>
+      <div class="form-field full"><label>Address *</label><input type="text" id="f_address" placeholder="1234 Sunset Blvd, Los Angeles, CA 90026"></div>
+      <div class="form-field"><label>Market *</label><input type="text" id="f_mkt" placeholder="Los Angeles"></div>
+      <div class="form-field"><label>Submarket</label><input type="text" id="f_market" placeholder="Silver Lake / Echo Park"></div>
+      <div class="form-field"><label>Units</label><input type="number" id="f_units" placeholder="180"></div>
+      <div class="form-field"><label>Year built</label><input type="number" id="f_yearbuilt" placeholder="2003"></div>
+      <div class="form-field"><label>Total SF</label><input type="number" id="f_sf" placeholder="153000"></div>
+      <div class="form-field"><label>Avg unit SF</label><input type="number" id="f_avgsf" placeholder="850"></div>
+      <div class="form-section">Transaction details</div>
+      <div class="form-field"><label>Sale date *</label><input type="date" id="f_date"></div>
+      <div class="form-field"><label>Sale price ($)</label><input type="number" id="f_price" placeholder="45000000"></div>
+      <div class="form-field"><label>Cap rate (%)</label><input type="number" step="0.01" id="f_cap" placeholder="4.75"></div>
+      <div class="form-field"><label>Price per unit ($)</label><input type="number" id="f_ppu" placeholder="250000"></div>
+      <div class="form-field"><label>Price per SF ($)</label><input type="number" step="0.01" id="f_psf" placeholder="295"></div>
+      <div class="form-field"><label></label><span></span></div>
+      <div class="form-field"><label>Buyer</label><input type="text" id="f_buyer" placeholder="Blackstone RE"></div>
+      <div class="form-field"><label>Seller</label><input type="text" id="f_seller" placeholder="Greystar"></div>
+      <div class="form-section">Map coordinates (optional — filled in automatically from the address)</div>
+      <div class="form-field"><label>Latitude</label><input type="number" step="0.00001" id="f_lat" placeholder="34.0837"><span class="hint">Right-click on Google Maps → coords appear at top, click to copy</span></div>
+      <div class="form-field"><label>Longitude</label><input type="number" step="0.00001" id="f_lng" placeholder="-118.2608"></div>
+      <div class="form-section">Notes</div>
+      <div class="form-field full"><label>Deal notes</label><textarea id="f_notes" placeholder="Value-add play. Below market rents..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="generateCsvRow()">Generate CSV row</button></div>
+    <div id="csvRowOutput" style="display:none; margin-top:18px;">
+      <div style="font-size:11px; color:var(--text2); margin-bottom:6px;">Copy this row, then on GitHub: open <strong>comps.csv</strong> → click pencil to edit → paste at the bottom → commit.</div>
+      <div class="csv-output" id="csvRowText"></div>
+      <button class="btn-save" style="margin-top:10px; width:100%;" onclick="copyCsvRow()">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div id="exportModal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closeExportModal()">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><div class="modal-title">Export visible comps</div><button class="modal-close" onclick="closeExportModal()">×</button></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Export the <strong id="exportCount">0</strong> currently visible comps as a CSV.</p>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeExportModal()">Cancel</button><button class="btn-save" onclick="downloadCSV()">Download CSV</button></div>
+  </div>
+</div>
+
+<div id="pdfModal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Export PDF — Sale Comparables</div><button class="modal-close" onclick="closePdfModal()">×</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;">Generate a clean, IC-ready PDF summary. Optionally add a subject property to compare against the comp set.</p>
+
+    <div class="form-grid">
+      <div class="form-section">Report details</div>
+      <div class="form-field full"><label>Report title (optional)</label><input type="text" id="pdf_title" placeholder="Westside Multifamily Comps — May 2026"></div>
+
+      <div class="form-section">Subject property (optional)</div>
+      <div class="form-field full"><label>Property name</label><input type="text" id="pdf_subj_name" placeholder="The Avenue Apartments"></div>
+      <div class="form-field full"><label>Address</label><input type="text" id="pdf_subj_addr" placeholder="1234 Sunset Blvd, Los Angeles, CA"></div>
+      <div class="form-field"><label>Units</label><input type="number" id="pdf_subj_units" placeholder="180"></div>
+      <div class="form-field"><label>Year built</label><input type="number" id="pdf_subj_year" placeholder="2018"></div>
+      <div class="form-field"><label>Proposed purchase price ($)</label><input type="number" id="pdf_subj_price" placeholder="65000000"></div>
+      <div class="form-field"><label>Proposed cap rate (%)</label><input type="number" step="0.01" id="pdf_subj_cap" placeholder="4.50"></div>
+      <div class="form-field"><label>Total SF (optional)</label><input type="number" id="pdf_subj_sf" placeholder="153000"></div>
+      <div class="form-field"><label>&nbsp;</label><span></span></div>
+      <div class="form-field"><label>Latitude (for map)</label><input type="number" step="0.00001" id="pdf_subj_lat" placeholder="34.0837"></div>
+      <div class="form-field"><label>Longitude (for map)</label><input type="number" step="0.00001" id="pdf_subj_lng" placeholder="-118.2608"><span class="hint">If lat/lng provided, a map page will be added.</span></div>
+
+      <div class="form-section">Select comps to include</div>
+      <div class="form-field full">
+        <div class="pdf-list-controls">
+          <a onclick="pdfSelectAll(true)">Select all</a>
+          <a onclick="pdfSelectAll(false)">Deselect all</a>
+          <a onclick="pdfSelectVisible()">Map view only</a>
+          <span class="pdf-list-count" id="pdfSelectedCount">0 selected</span>
+        </div>
+        <div class="pdf-comp-list" id="pdfCompList"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer"><button class="btn-cancel" onclick="closePdfModal()">Cancel</button><button class="btn-save" onclick="generatePDF()">Generate PDF</button></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div>
+      <div style="font-weight:600;color:var(--navy);" id="loadingText">Generating PDF...</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px;">This may take a few seconds</div>
+    </div>
+  </div>
+</div>
+
+<div id="pdfMapContainer"></div>
+
+<script>
+// Comps live in comps.csv (same folder). Edit that file — not this one — to add or change comps.
+let COMPS = [];
+const CSV_NUM = ['id','units','year_built','sf','avg_sf','sale_price','cap_rate','ppu','psf','lat','lng'];
+const CSV_KEY = { sale_date:'date', year_built:'yearBuilt', avg_sf:'avgSF', sale_price:'price', cap_rate:'cap' };
+function parseCSV(text) {
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i+1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(f); f = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i+1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += ch;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim() !== ''));
+}
+// Accepts YYYY-MM-DD, Mon-YY ("Jan-26"), Mon YYYY, or M/D/YYYY; returns YYYY-MM-DD ('' if unreadable)
+function normDate(s) {
+  s = (s || '').trim(); if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  let m = s.match(/^([A-Za-z]{3})[a-z]*[-\s]+(\d{2}|\d{4})$/);
+  if (m && MON.includes(m[1].toLowerCase())) { const y = m[2].length === 2 ? '20' + m[2] : m[2]; return `${y}-${String(MON.indexOf(m[1].toLowerCase()) + 1).padStart(2, '0')}-01`; }
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; }
+  return '';
+}
+async function loadComps() {
+  const res = await fetch('comps.csv?v=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('Could not load comps.csv (' + res.status + ')');
+  const [header, ...rows] = parseCSV((await res.text()).replace(/^﻿/, ''));
+  const cols = header.map(h => h.trim());
+  COMPS = rows.map(r => {
+    const c = {};
+    cols.forEach((col, i) => {
+      const raw = (r[i] ?? '').trim();
+      const key = CSV_KEY[col] || col;
+      if (CSV_NUM.includes(col)) { const n = parseFloat(raw.replace(/[$,%\s]/g, '')); c[key] = isNaN(n) ? null : n; }
+      else c[key] = raw;
+    });
+    c.date = normDate(c.date);
+    c.yearBuiltRaw = c.yearBuilt != null ? Math.round(c.yearBuilt) : null;
+    return c;
+  }).filter(c => c.id != null && c.name);
+}
+
+let selectedId = null;
+let isSatellite = false;
+let map, lightLayer, satLayer, markers = {}, clusterGroup;
+let subjectMarker = null, radiusCircles = [];
+let filteredComps = [];
+let visibleComps = [];
+let pdfSelectedIds = new Set();
+
+const NA = 'N/A';
+const fmtPrice = n => { if (n == null || n === '') return NA; if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B'; if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M'; if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K'; return '$' + n.toLocaleString(); };
+const fmtPPU = n => n != null ? '$' + Math.round(n/1000) + 'K' : NA;
+const fmtCap = n => n != null ? n.toFixed(2) + '%' : NA;
+const fmtPSF = n => n != null ? '$' + Math.round(n) : NA;
+const fmtDate = s => { if (!s) return NA; const d = new Date(s + 'T00:00:00'); return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
+
+function toggleCombo(name, event) {
+  event && event.stopPropagation();
+  const menu = document.getElementById('menu-' + name);
+  document.querySelectorAll('.filter-combo-menu').forEach(m => { if (m !== menu) m.classList.remove('show'); });
+  menu.classList.toggle('show');
+}
+function setComboValue(inputId, value) {
+  document.getElementById(inputId).value = value;
+  document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show'));
+  applyFilters();
+}
+document.addEventListener('click', (e) => { if (!e.target.closest('.filter-combo')) document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show')); });
+
+map = L.map('map', { center: [34.05, -118.35], zoom: 10, zoomControl: false, attributionControl: true });
+// Free, no-key light basemap (Esri Light Gray Canvas + labels). CARTO started requiring an API key.
+lightLayer = L.layerGroup([
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxNativeZoom: 16, maxZoom: 19 }),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 })
+]).addTo(map);
+satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 });
+
+// Cluster group: groups nearby pins into bubbles when zoomed out
+clusterGroup = L.markerClusterGroup({
+  showCoverageOnHover: true,        // hover shows the bounding polygon of the cluster
+  zoomToBoundsOnClick: true,        // click to zoom into cluster
+  spiderfyOnMaxZoom: true,          // at max zoom, spread overlapping pins
+  removeOutsideVisibleBounds: true, // perf: only render visible markers
+  disableClusteringAtZoom: 9,       // at zoom 9+ (LA county fits on screen), show individual pins
+  maxClusterRadius: 30,             // pixel radius for clustering — quite tight
+  polygonOptions: { color: '#C8993A', weight: 1.5, opacity: 0.6, fillColor: '#C8993A', fillOpacity: 0.08 },
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
+    let size = 36, fontSize = 13;
+    if (count >= 100) { size = 64; fontSize = 17; }
+    else if (count >= 30) { size = 54; fontSize = 15; }
+    else if (count >= 10) { size = 44; fontSize = 14; }
+    const r = (size - 4) / 2;  // radius accounting for stroke
+    const cx = size / 2, cy = size / 2;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;overflow:visible;">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#0D1F35" stroke="#ffffff" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(13,31,53,0.4));"/>
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="DM Sans, sans-serif" font-size="${fontSize}" font-weight="700">${count}</text>
+    </svg>`;
+    return L.divIcon({
+      html: svg,
+      className: 'ct-cluster-wrapper',
+      iconSize: L.point(size, size)
+    });
+  }
+});
+map.addLayer(clusterGroup);
+
+map.on('moveend zoomend', () => { recomputeVisible(); renderList(); renderStats(); });
+
+function createMarker(comp) {
+  const icon = L.divIcon({ className: '', html: `<div class="comp-marker" data-id="${comp.id}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+  const m = L.marker([comp.lat, comp.lng], { icon, riseOnHover: true });
+  m.bindPopup(buildPopup(comp), { maxWidth: 340, closeButton: true, autoPan: true });
+  m.on('click', () => selectComp(comp.id, false));
+  return m;
+}
+
+function buildPopup(c) {
+  const yr = c.yearBuiltRaw || c.yearBuilt || NA;
+  const units = c.units != null ? `${c.units} units` : NA;
+  const stats = `<div><div class="popup-stat-label">Sale Price</div><div class="popup-stat-val">${fmtPrice(c.price)}</div></div><div><div class="popup-stat-label">Price / Unit</div><div class="popup-stat-val">${fmtPPU(c.ppu)}</div></div><div><div class="popup-stat-label">Cap Rate</div><div class="popup-stat-val">${fmtCap(c.cap)}</div></div><div><div class="popup-stat-label">Price / SF</div><div class="popup-stat-val">${fmtPSF(c.psf)}</div></div>`;
+  const meta = `<div class="popup-meta"><strong>Sold:</strong> ${fmtDate(c.date)}<br><strong>Buyer:</strong> ${c.buyer || NA}<br><strong>Seller:</strong> ${c.seller || NA}</div>`;
+  const notes = c.notes ? `<div class="popup-notes">${c.notes}</div>` : '';
+  return `<div class="popup-header"><div class="popup-name">${c.name}</div><div class="popup-addr">${c.address || c.submarket || ''}</div><div class="popup-meta-header"><strong>Year Built:</strong> ${yr} &nbsp;·&nbsp; <strong>${units}</strong></div></div><div class="popup-body"><div class="popup-grid">${stats}</div>${meta}${notes}</div>`;
+}
+
+function renderMarkers() {
+  // Clear existing markers from the cluster group
+  clusterGroup.clearLayers();
+  markers = {};
+  const layerArr = [];
+  filteredComps.forEach(c => {
+    if (c.lat == null || c.lng == null) return;
+    const m = createMarker(c);
+    markers[c.id] = m;
+    layerArr.push(m);
+  });
+  // Bulk-add for better performance
+  clusterGroup.addLayers(layerArr);
+}
+
+function recomputeVisible() {
+  if (!map) { visibleComps = filteredComps.slice(); return; }
+  const bounds = map.getBounds();
+  visibleComps = filteredComps.filter(c => { if (c.lat == null || c.lng == null) return false; if (selectedId === c.id) return true; return bounds.contains([c.lat, c.lng]); });
+}
+
+function renderList() {
+  const list = document.getElementById('compList');
+  if (visibleComps.length === 0) { list.innerHTML = '<div class="empty-state">No comps in this view.<br><span style="color:var(--text2);">Try zooming out or clearing filters.</span></div>'; return; }
+  list.innerHTML = visibleComps.map(c => {
+    const sub = [c.submarket, c.date ? fmtDate(c.date) : ''].filter(Boolean).join(' · ');
+    const meta = [c.units != null ? c.units + ' units' : '', c.yearBuiltRaw ? 'Built ' + c.yearBuiltRaw : '', c.cap != null ? fmtCap(c.cap) + ' cap' : ''].filter(Boolean).join(' · ');
+    return `<div class="comp-item ${selectedId === c.id ? 'active' : ''}" onclick="selectComp(${c.id}, true)">
+      <div class="ci-row"><div class="ci-name">${c.name}</div><div class="ci-price">${fmtPrice(c.price)}</div></div>
+      <div class="ci-row"><div class="ci-sub">${sub}</div>${c.ppu != null ? `<div class="ci-ppu">${fmtPPU(c.ppu)}/unit</div>` : ''}</div>
+      ${meta ? `<div class="ci-meta">${meta}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  const valid = visibleComps;
+  const caps = valid.map(c => c.cap).filter(v => v != null);
+  const ppus = valid.map(c => c.ppu).filter(v => v != null);
+  const avgCap = caps.length ? (caps.reduce((a,b)=>a+b,0) / caps.length) : null;
+  const avgPpu = ppus.length ? (ppus.reduce((a,b)=>a+b,0) / ppus.length) : null;
+  document.getElementById('statsBar').innerHTML = `<div class="stat"><div class="stat-label">Comps in view</div><div class="stat-val">${valid.length}</div></div><div class="stat"><div class="stat-label">Avg Cap</div><div class="stat-val">${avgCap != null ? avgCap.toFixed(2) + '%' : NA}</div></div><div class="stat"><div class="stat-label">Avg $/Unit</div><div class="stat-val">${avgPpu != null ? '$' + Math.round(avgPpu/1000) + 'K' : NA}</div></div>`;
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const market = document.getElementById('filterMarket').dataset.value || '';
+  const monthsBack = parseFloat(document.getElementById('filterMonths').value);
+  const unitsMin = parseFloat(document.getElementById('filterUnitsMin').value);
+  const unitsMax = parseFloat(document.getElementById('filterUnitsMax').value);
+  const yearMin = parseFloat(document.getElementById('filterYearMin').value);
+  const yearMax = parseFloat(document.getElementById('filterYearMax').value);
+  let activeCount = 0;
+  ['filterMarket','filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax'].forEach(id => {
+    const el = document.getElementById(id);
+    const on = id === 'filterMarket' ? !!el.dataset.value : el.value !== '';
+    el.closest('.filter-combo').classList.toggle('has-value', on);
+    if (on) activeCount++;
+  });
+  const clearBtn = document.getElementById('clearFiltersBtn');
+  clearBtn.classList.toggle('active', activeCount > 0);
+  clearBtn.textContent = activeCount ? `Clear filters (${activeCount})` : 'Clear filters';
+  let cutoffDate = null;
+  if (!isNaN(monthsBack) && monthsBack > 0) { const today = new Date(); cutoffDate = new Date(today.getFullYear(), today.getMonth() - monthsBack, today.getDate()); }
+  filteredComps = COMPS.filter(c => {
+    if (market && c.market !== market) return false;
+    if (cutoffDate) { if (!c.date) return false; const compDate = new Date(c.date + 'T00:00:00'); if (compDate < cutoffDate) return false; }
+    if (!isNaN(unitsMin)) { if (c.units == null || c.units < unitsMin) return false; }
+    if (!isNaN(unitsMax)) { if (c.units == null || c.units > unitsMax) return false; }
+    if (!isNaN(yearMin)) { if (!c.yearBuilt || c.yearBuilt < yearMin) return false; }
+    if (!isNaN(yearMax)) { if (!c.yearBuilt || c.yearBuilt > yearMax) return false; }
+    if (q) { const hay = `${c.name||''} ${c.address||''} ${c.submarket||''} ${c.market||''} ${c.buyer||''} ${c.seller||''}`.toLowerCase(); if (!hay.includes(q)) return false; }
+    return true;
+  });
+  filteredComps.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  renderMarkers(); recomputeVisible(); renderList(); renderStats();
+}
+
+function setMarketFilter(market) {
+  const input = document.getElementById('filterMarket');
+  input.value = market || 'All markets';
+  input.dataset.value = market || '';
+  document.querySelectorAll('.filter-combo-menu').forEach(m => m.classList.remove('show'));
+  applyFilters();
+  // When user picks a specific market, zoom to fit those comps
+  if (market) {
+    const comps = COMPS.filter(c => c.market === market && c.lat != null && c.lng != null);
+    if (comps.length > 0) {
+      const bounds = L.latLngBounds(comps.map(c => [c.lat, c.lng]));
+      map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8, maxZoom: 12 });
+    }
+  } else {
+    // "All markets" — fit to all comps
+    fitMapToAllComps();
+  }
+}
+
+function fitMapToAllComps() {
+  const comps = COMPS.filter(c => c.lat != null && c.lng != null);
+  if (comps.length > 0) {
+    const bounds = L.latLngBounds(comps.map(c => [c.lat, c.lng]));
+    map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8 });
+  }
+}
+
+function populateMarketDropdown() {
+  const markets = [...new Set(COMPS.map(c => c.market).filter(m => m))].sort();
+  const menu = document.getElementById('menu-market');
+  // Keep "All markets" option, append markets, then a clear option
+  const counts = {};
+  COMPS.forEach(c => { if (c.market) counts[c.market] = (counts[c.market] || 0) + 1; });
+  let html = '<div class="opt" onclick="setMarketFilter(\'\')">All markets</div>';
+  markets.forEach(m => {
+    html += `<div class="opt" onclick="setMarketFilter('${m.replace(/'/g, "\\'")}')">${m} <span style="color:var(--text3);font-size:11px;">(${counts[m]})</span></div>`;
+  });
+  menu.innerHTML = html;
+}
+
+function clearAllFilters() {
+  ['filterMonths','filterUnitsMin','filterUnitsMax','filterYearMin','filterYearMax','searchInput'].forEach(id => document.getElementById(id).value = '');
+  // Reset market filter
+  const marketInput = document.getElementById('filterMarket');
+  marketInput.value = 'All markets';
+  marketInput.dataset.value = '';
+  applyFilters();
+}
+
+function selectComp(id, panTo) {
+  selectedId = id;
+  Object.entries(markers).forEach(([mid, m]) => { const el = m.getElement()?.querySelector('.comp-marker'); if (el) el.classList.toggle('selected', String(mid) === String(id)); });
+  recomputeVisible(); renderList(); renderStats();
+  const c = COMPS.find(x => x.id === id);
+  if (!c || !markers[id]) return;
+  const marker = markers[id];
+  // If marker is inside a cluster, zoom in to reveal it before opening popup
+  if (clusterGroup.hasLayer(marker) && clusterGroup.getVisibleParent(marker) !== marker) {
+    clusterGroup.zoomToShowLayer(marker, () => {
+      marker.openPopup();
+      // Re-apply selected style after uncluster (DOM gets recreated)
+      const el = marker.getElement()?.querySelector('.comp-marker');
+      if (el) el.classList.add('selected');
+    });
+  } else {
+    if (panTo) map.flyTo([c.lat, c.lng], Math.max(map.getZoom(), 13), { duration: 0.6 });
+    marker.openPopup();
+  }
+}
+
+function resetView() {
+  selectedId = null;
+  // Reset market filter and fit to all comps
+  const marketInput = document.getElementById('filterMarket');
+  marketInput.value = 'All markets';
+  marketInput.dataset.value = '';
+  applyFilters();
+  fitMapToAllComps();
+  Object.values(markers).forEach(m => { const el = m.getElement()?.querySelector('.comp-marker'); if (el) el.classList.remove('selected'); });
+}
+
+function toggleSatellite() {
+  isSatellite = !isSatellite;
+  const btn = document.getElementById('satBtn');
+  if (isSatellite) { map.removeLayer(lightLayer); satLayer.addTo(map); btn.classList.add('active'); btn.querySelector('.map-btn-label').textContent = 'MAP'; }
+  else { map.removeLayer(satLayer); lightLayer.addTo(map); btn.classList.remove('active'); btn.querySelector('.map-btn-label').textContent = 'SAT'; }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebarToggle');
+  const isHidden = sidebar.classList.toggle('collapsed');
+  document.body.classList.toggle('sidebar-hidden', isHidden);
+  btn.textContent = isHidden ? '›' : '‹';
+  btn.title = isHidden ? 'Show sidebar' : 'Hide sidebar';
+  setTimeout(() => map.invalidateSize(), 280);
+}
+
+async function setSubjectProperty() {
+  const input = document.getElementById('subjectInput').value.trim();
+  if (!input) return;
+  const llMatch = input.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+  let lat, lng, label;
+  if (llMatch) { lat = parseFloat(llMatch[1]); lng = parseFloat(llMatch[2]); label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; }
+  else {
+    document.getElementById('subjectInfo').innerHTML = 'Looking up address...';
+    document.getElementById('subjectInfo').classList.add('show');
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(input)}`;
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' }});
+      const data = await r.json();
+      if (data && data.length) { lat = parseFloat(data[0].lat); lng = parseFloat(data[0].lon); label = data[0].display_name.split(',').slice(0,3).join(','); }
+      else { document.getElementById('subjectInfo').innerHTML = '<span style="color:#B00">Address not found.</span>'; return; }
+    } catch (err) { document.getElementById('subjectInfo').innerHTML = '<span style="color:#B00">Geocoding failed. Try lat,lng format.</span>'; return; }
+  }
+  if (subjectMarker) map.removeLayer(subjectMarker);
+  radiusCircles.forEach(c => map.removeLayer(c));
+  radiusCircles = [];
+  subjectMarker = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div class="subject-marker"></div>', iconSize: [22,22], iconAnchor: [11,11] }), zIndexOffset: 1000 }).addTo(map);
+  subjectMarker.bindTooltip('Subject Property', { permanent: false, direction: 'top', offset: [0,-12] });
+  [1, 3, 5].forEach((mi, i) => { const c = L.circle([lat, lng], { radius: mi * 1609.34, color: '#C8993A', weight: 1.5, fillOpacity: 0.04 + (i * 0.01), fillColor: '#C8993A', dashArray: i === 0 ? '' : '4,4', interactive: false }).addTo(map); radiusCircles.push(c); });
+  map.flyToBounds(radiusCircles[2].getBounds(), { padding: [40,40], duration: 0.8 });
+  document.getElementById('subjectInfo').innerHTML = `<strong>Set:</strong> ${label}<br><span style="color:var(--text3);">1 / 3 / 5 mile rings shown</span><span class="subject-clear" onclick="clearSubject()">clear</span>`;
+  document.getElementById('subjectInfo').classList.add('show');
+}
+
+function clearSubject() {
+  if (subjectMarker) map.removeLayer(subjectMarker);
+  radiusCircles.forEach(c => map.removeLayer(c));
+  radiusCircles = []; subjectMarker = null;
+  document.getElementById('subjectInfo').classList.remove('show');
+  document.getElementById('subjectInput').value = '';
+}
+
+function openAddModal() { document.getElementById('addModal').style.display = 'flex'; document.getElementById('csvRowOutput').style.display = 'none'; }
+function closeModal() { document.getElementById('addModal').style.display = 'none'; ['f_name','f_address','f_mkt','f_market','f_units','f_yearbuilt','f_sf','f_avgsf','f_price','f_cap','f_ppu','f_psf','f_buyer','f_seller','f_lat','f_lng','f_notes','f_date'].forEach(id => document.getElementById(id).value = ''); }
+function csvEscape(v) { if (v == null || v === '') return ''; const s = String(v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; }
+function generateCsvRow() {
+  const v = id => document.getElementById(id).value.trim();
+  const nextId = COMPS.reduce((m, c) => Math.max(m, c.id || 0), 0) + 1;
+  // Column order matches comps.csv: id,name,address,market,submarket,sale_date,class,units,year_built,sf,avg_sf,sale_price,cap_rate,ppu,psf,buyer,seller,notes,lat,lng
+  const fields = [nextId, v('f_name'), v('f_address'), v('f_mkt'), v('f_market'), v('f_date'), '', v('f_units'), v('f_yearbuilt'), v('f_sf'), v('f_avgsf'), v('f_price'), v('f_cap'), v('f_ppu'), v('f_psf'), v('f_buyer'), v('f_seller'), v('f_notes'), v('f_lat'), v('f_lng')];
+  if (!fields[1] || !fields[2] || !fields[3]) { alert('Please fill in: Property name, Address, Market'); return; }
+  document.getElementById('csvRowText').textContent = fields.map(csvEscape).join(',');
+  document.getElementById('csvRowOutput').style.display = 'block';
+}
+function copyCsvRow() { navigator.clipboard.writeText(document.getElementById('csvRowText').textContent).then(() => alert('Copied to clipboard!')); }
+
+function openExportModal() { document.getElementById('exportCount').textContent = visibleComps.length; document.getElementById('exportModal').style.display = 'flex'; }
+function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+function downloadCSV() {
+  const headers = ['id','name','address','market','submarket','sale_date','units','year_built','sf','avg_sf','sale_price','cap_rate','ppu','psf','buyer','seller','notes','lat','lng'];
+  const rows = [headers.join(',')];
+  visibleComps.forEach(c => rows.push([c.id, c.name, c.address, c.market, c.submarket, c.date, c.units, c.yearBuilt, c.sf, c.avgSF, c.price, c.cap, c.ppu, c.psf, c.buyer, c.seller, c.notes, c.lat, c.lng].map(csvEscape).join(',')));
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `comptrack_export_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  closeExportModal();
+}
+
+// ─── PDF EXPORT ─────────────────────────────────────────
+function openPdfModal() {
+  pdfSelectedIds = new Set(visibleComps.map(c => c.id));
+  renderPdfCompList();
+  document.getElementById('pdfModal').style.display = 'flex';
+}
+function closePdfModal() { document.getElementById('pdfModal').style.display = 'none'; }
+
+function renderPdfCompList() {
+  const list = document.getElementById('pdfCompList');
+  const all = [...filteredComps].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  list.innerHTML = all.map(c => `<label class="pdf-comp-row"><input type="checkbox" ${pdfSelectedIds.has(c.id) ? 'checked' : ''} onchange="togglePdfSelect(${c.id}, this.checked)"><span class="pdf-comp-name">${c.name}</span><span class="pdf-comp-meta">${fmtDate(c.date)} · ${c.units != null ? c.units + 'u' : NA} · ${fmtPrice(c.price)}</span></label>`).join('');
+  document.getElementById('pdfSelectedCount').textContent = pdfSelectedIds.size + ' selected';
+}
+
+function togglePdfSelect(id, checked) {
+  if (checked) pdfSelectedIds.add(id); else pdfSelectedIds.delete(id);
+  document.getElementById('pdfSelectedCount').textContent = pdfSelectedIds.size + ' selected';
+}
+
+function pdfSelectAll(checked) { if (checked) filteredComps.forEach(c => pdfSelectedIds.add(c.id)); else pdfSelectedIds.clear(); renderPdfCompList(); }
+function pdfSelectVisible() { pdfSelectedIds = new Set(visibleComps.map(c => c.id)); renderPdfCompList(); }
+
+function weightedAvg(items, valueKey, weightKey = 'units') {
+  let sum = 0, weight = 0;
+  items.forEach(c => { if (c[valueKey] != null && c[weightKey] != null) { sum += c[valueKey] * c[weightKey]; weight += c[weightKey]; } });
+  return weight > 0 ? sum / weight : null;
+}
+function simpleAvg(items, key) { const vals = items.map(c => c[key]).filter(v => v != null); return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : null; }
+
+async function generatePDF() {
+  const selectedComps = filteredComps.filter(c => pdfSelectedIds.has(c.id)).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  if (selectedComps.length === 0) { alert('Please select at least one comp to include.'); return; }
+
+  const subj = {
+    name: document.getElementById('pdf_subj_name').value.trim(),
+    addr: document.getElementById('pdf_subj_addr').value.trim(),
+    units: parseFloat(document.getElementById('pdf_subj_units').value) || null,
+    year: parseFloat(document.getElementById('pdf_subj_year').value) || null,
+    price: parseFloat(document.getElementById('pdf_subj_price').value) || null,
+    cap: parseFloat(document.getElementById('pdf_subj_cap').value) || null,
+    sf: parseFloat(document.getElementById('pdf_subj_sf').value) || null,
+    lat: parseFloat(document.getElementById('pdf_subj_lat').value) || null,
+    lng: parseFloat(document.getElementById('pdf_subj_lng').value) || null,
+  };
+  subj.ppu = (subj.price && subj.units) ? subj.price / subj.units : null;
+  subj.psf = (subj.price && subj.sf) ? subj.price / subj.sf : null;
+  const hasSubject = !!(subj.name || subj.addr);
+  const hasSubjectMap = hasSubject && subj.lat != null && subj.lng != null;
+
+  const reportTitle = document.getElementById('pdf_title').value.trim() || 'Sale Comparables Analysis';
+  document.getElementById('loadingOverlay').classList.add('show');
+  document.getElementById('loadingText').textContent = 'Generating PDF...';
+
+  try {
+    closePdfModal();
+    await new Promise(r => setTimeout(r, 50));
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 32;
+
+    pdf.setFillColor(13, 31, 53);
+    pdf.rect(0, 0, pageW, 56, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+    pdf.text('CompTrack', margin, 28);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+    pdf.setTextColor(200, 153, 58);
+    pdf.text('Sale Comparables Analysis', margin, 44);
+    pdf.setTextColor(255, 255, 255); pdf.setFontSize(9);
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    pdf.text(dateStr, pageW - margin, 28, { align: 'right' });
+    pdf.setFontSize(10); pdf.setTextColor(200, 153, 58);
+    pdf.text(reportTitle, pageW - margin, 44, { align: 'right' });
+
+    let y = 80;
+
+    if (hasSubject) {
+      pdf.setFillColor(247, 244, 238);
+      pdf.rect(margin, y, pageW - 2*margin, 70, 'F');
+      pdf.setDrawColor(200, 153, 58); pdf.setLineWidth(2);
+      pdf.line(margin, y, margin, y + 70);
+      pdf.setLineWidth(0.5);
+      pdf.setTextColor(200, 153, 58); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+      pdf.text('SUBJECT PROPERTY', margin + 12, y + 16);
+      pdf.setTextColor(13, 31, 53); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13);
+      pdf.text(subj.name || 'Subject', margin + 12, y + 32);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(90, 106, 122);
+      pdf.text(subj.addr || '', margin + 12, y + 46);
+
+      const statsX = pageW * 0.45;
+      const cellW = (pageW - margin - statsX) / 5;
+      const stats = [
+        ['Purchase Price', fmtPrice(subj.price)],
+        ['Price / Unit', fmtPPU(subj.ppu)],
+        ['Cap Rate', fmtCap(subj.cap)],
+        ['Units', subj.units != null ? String(subj.units) : NA],
+        ['Year Built', subj.year != null ? String(subj.year) : NA],
+      ];
+      stats.forEach((s, i) => {
+        const x = statsX + i * cellW;
+        pdf.setTextColor(138, 155, 173); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+        pdf.text(s[0].toUpperCase(), x, y + 22);
+        pdf.setTextColor(13, 31, 53); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+        pdf.text(s[1], x, y + 40);
+      });
+      y += 84;
+    }
+
+    const tableHead = [['#', 'Property', 'Address', 'Sale Date', 'Units', 'Year', 'Sale Price', '$/Unit', 'Cap Rate', '$/SF']];
+    const tableBody = selectedComps.map((c, i) => [
+      String(i + 1), c.name || '', c.address || '', fmtDate(c.date),
+      c.units != null ? String(c.units) : NA, c.yearBuilt != null ? String(c.yearBuilt) : NA,
+      fmtPrice(c.price), fmtPPU(c.ppu), fmtCap(c.cap), fmtPSF(c.psf),
+    ]);
+
+    const avgPrice = simpleAvg(selectedComps, 'price');
+    const wAvgPPU = weightedAvg(selectedComps, 'ppu');
+    const wAvgPSF = weightedAvg(selectedComps, 'psf');
+    const avgCap = simpleAvg(selectedComps, 'cap');
+    const avgYear = simpleAvg(selectedComps, 'yearBuilt');
+    const avgUnits = simpleAvg(selectedComps, 'units');
+
+    const avgRow = ['', 'COMP AVERAGES', '', '', avgUnits != null ? Math.round(avgUnits).toString() : NA, avgYear != null ? Math.round(avgYear).toString() : NA, fmtPrice(avgPrice), fmtPPU(wAvgPPU), fmtCap(avgCap), fmtPSF(wAvgPSF)];
+    const subjRow = hasSubject ? ['', 'SUBJECT PROPERTY', subj.addr || '', '', subj.units != null ? String(subj.units) : NA, subj.year != null ? String(subj.year) : NA, fmtPrice(subj.price), fmtPPU(subj.ppu), fmtCap(subj.cap), fmtPSF(subj.psf)] : null;
+
+    pdf.autoTable({
+      startY: y,
+      head: tableHead, body: tableBody, foot: subjRow ? [avgRow, subjRow] : [avgRow],
+      margin: { left: margin, right: margin },
+      theme: 'plain',
+      styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 6, right: 6, bottom: 6, left: 6 }, lineColor: [220, 220, 220], lineWidth: 0.4, textColor: [13, 31, 53] },
+      headStyles: { fillColor: [13, 31, 53], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 8, right: 6, bottom: 8, left: 6 }, halign: 'left' },
+      footStyles: { fillColor: [247, 244, 238], textColor: [13, 31, 53], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 8, right: 6, bottom: 8, left: 6 } },
+      columnStyles: {
+        0: { cellWidth: 24, halign: 'center', textColor: [138, 155, 173] },
+        1: { cellWidth: 130 }, 2: { cellWidth: 165 },
+        3: { cellWidth: 56, halign: 'center' }, 4: { cellWidth: 40, halign: 'center' },
+        5: { cellWidth: 40, halign: 'center' }, 6: { cellWidth: 64, halign: 'right' },
+        7: { cellWidth: 56, halign: 'right' }, 8: { cellWidth: 52, halign: 'right' }, 9: { cellWidth: 40, halign: 'right' },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'foot' && subjRow && data.row.index === 1) { data.cell.styles.fillColor = [200, 153, 58]; data.cell.styles.textColor = [255, 255, 255]; }
+        if (data.section === 'body' && data.row.index % 2 === 1) { data.cell.styles.fillColor = [251, 250, 247]; }
+      },
+    });
+
+    pdf.setTextColor(138, 155, 173); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+    pdf.text(`Generated by CompTrack · ${selectedComps.length} comparables`, margin, pageH - 16);
+    pdf.text('Page 1', pageW - margin, pageH - 16, { align: 'right' });
+
+    if (hasSubjectMap) {
+      document.getElementById('loadingText').textContent = 'Rendering map...';
+      try {
+        const mapImg = await renderPdfMapImage(subj, selectedComps);
+        if (mapImg) {
+          pdf.addPage('letter', 'landscape');
+          pdf.setFillColor(13, 31, 53); pdf.rect(0, 0, pageW, 56, 'F');
+          pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18);
+          pdf.text('CompTrack', margin, 28);
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(200, 153, 58);
+          pdf.text('Comparables Map', margin, 44);
+          pdf.setTextColor(255, 255, 255); pdf.setFontSize(9);
+          pdf.text(dateStr, pageW - margin, 28, { align: 'right' });
+          pdf.setFontSize(10); pdf.setTextColor(200, 153, 58);
+          pdf.text(reportTitle, pageW - margin, 44, { align: 'right' });
+
+          const mapY = 80;
+          const mapWidth = pageW - 2 * margin;
+          const mapHeight = pageH - mapY - 60;
+          const imgAspect = mapImg.width / mapImg.height;
+          const boxAspect = mapWidth / mapHeight;
+          let drawW = mapWidth, drawH = mapHeight, drawX = margin, drawY = mapY;
+          if (imgAspect > boxAspect) { drawH = mapWidth / imgAspect; drawY = mapY + (mapHeight - drawH) / 2; }
+          else { drawW = mapHeight * imgAspect; drawX = margin + (mapWidth - drawW) / 2; }
+
+          pdf.addImage(mapImg.dataUrl, 'PNG', drawX, drawY, drawW, drawH);
+
+          const legendY = pageH - 40;
+          pdf.setFillColor(200, 153, 58);
+          pdf.circle(margin + 6, legendY, 4, 'F');
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(13, 31, 53);
+          pdf.text('Subject Property', margin + 14, legendY + 3);
+          pdf.setFillColor(13, 31, 53);
+          pdf.circle(margin + 110, legendY, 4, 'F');
+          pdf.text(`Comparable Sales (${selectedComps.length})`, margin + 118, legendY + 3);
+          pdf.setTextColor(138, 155, 173); pdf.setFontSize(7);
+          pdf.text('Page 2', pageW - margin, pageH - 16, { align: 'right' });
+        }
+      } catch (mapErr) { console.error('Map render failed:', mapErr); }
+    }
+
+    const fname = `CompTrack_${(reportTitle).replace(/[^a-z0-9]+/gi, '_').replace(/_+/g, '_').slice(0, 50)}_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(fname);
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    alert('Sorry, there was an error generating the PDF: ' + err.message);
+  } finally {
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }
+}
+
+async function renderPdfMapImage(subj, comps) {
+  return new Promise((resolve, reject) => {
+    const container = document.getElementById('pdfMapContainer');
+    container.innerHTML = '<div id="pdfMapInner" style="width:1100px;height:700px;"></div>';
+
+    const tempMap = L.map('pdfMapInner', { zoomControl: false, attributionControl: false, fadeAnimation: false, zoomAnimation: false });
+    const tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, crossOrigin: true });
+    tileLayer.addTo(tempMap);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, crossOrigin: true }).addTo(tempMap);
+
+    const points = [[subj.lat, subj.lng]];
+    comps.forEach(c => { if (c.lat != null && c.lng != null) points.push([c.lat, c.lng]); });
+    const bounds = L.latLngBounds(points);
+    tempMap.fitBounds(bounds, { padding: [60, 60] });
+
+    L.marker([subj.lat, subj.lng], { icon: L.divIcon({ className: '', html: '<div style="width:22px;height:22px;border-radius:50%;background:#C8993A;border:3px solid #fff;box-shadow:0 0 0 2px rgba(200,153,58,0.4),0 2px 6px rgba(0,0,0,0.3);"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(tempMap);
+
+    comps.forEach(c => {
+      if (c.lat == null || c.lng == null) return;
+      L.marker([c.lat, c.lng], { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#0D1F35;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(tempMap);
+    });
+
+    let captureAttempted = false;
+    const doCapture = async () => {
+      if (captureAttempted) return;
+      captureAttempted = true;
+      try {
+        await new Promise(r => setTimeout(r, 800));
+        const canvas = await html2canvas(document.getElementById('pdfMapInner'), { useCORS: true, allowTaint: true, logging: false, scale: 1.5, backgroundColor: '#ffffff' });
+        const dataUrl = canvas.toDataURL('image/png');
+        tempMap.remove();
+        container.innerHTML = '';
+        resolve({ dataUrl, width: canvas.width, height: canvas.height });
+      } catch (err) {
+        tempMap.remove();
+        container.innerHTML = '';
+        reject(err);
+      }
+    };
+
+    tileLayer.on('load', doCapture);
+    setTimeout(doCapture, 4000);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('filterMarket').dataset.value = '';
+loadComps().then(() => {
+  populateMarketDropdown();
+  applyFilters();
+  fitMapToAllComps();
+}).catch(err => {
+  console.error(err);
+  document.getElementById('compList').innerHTML = '<div class="empty-state">Couldn\'t load comps.csv.<br><span style="color:var(--text2);">' + err.message + '</span></div>';
+});
+</script>
+<div class="pv-bar"><span>Design preview</span><a href="design-a.html" class="on">A · Clean</a><a href="design-b.html">B · Map-first</a><a href="design-c.html">C · Navy panel</a><a href="./">Current site</a></div>
+</body>
+</html>
