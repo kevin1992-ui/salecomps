@@ -699,10 +699,12 @@ function createMarker(comp) {
 function buildPopup(c) {
   const yr = c.yearBuiltRaw || c.yearBuilt || NA;
   const units = c.units != null ? `${c.units} units` : NA;
+  const avg = c.avgSF != null ? c.avgSF : (c.sf != null && c.units ? c.sf / c.units : null);
+  const avgPart = avg != null ? ` &nbsp;·&nbsp; <strong>${Math.round(avg).toLocaleString()} SF avg</strong>` : '';
   const stats = `<div><div class="popup-stat-label">Sale Price</div><div class="popup-stat-val">${fmtPrice(c.price)}</div></div><div><div class="popup-stat-label">Price / Unit</div><div class="popup-stat-val">${fmtPPU(c.ppu)}</div></div><div><div class="popup-stat-label">Cap Rate</div><div class="popup-stat-val">${fmtCap(c.cap)}</div></div><div><div class="popup-stat-label">Price / SF</div><div class="popup-stat-val">${fmtPSF(c.psf)}</div></div>`;
   const meta = `<div class="popup-meta"><strong>Sold:</strong> ${fmtDate(c.date)}<br><strong>Buyer:</strong> ${c.buyer || NA}<br><strong>Seller:</strong> ${c.seller || NA}</div>`;
   const notes = c.notes ? `<div class="popup-notes">${c.notes}</div>` : '';
-  return `<div class="popup-header"><div class="popup-name">${c.name}</div><div class="popup-addr">${c.address || c.submarket || ''}</div><div class="popup-meta-header"><strong>Year Built:</strong> ${yr} &nbsp;·&nbsp; <strong>${units}</strong></div></div><div class="popup-body"><div class="popup-grid">${stats}</div>${meta}${notes}</div>`;
+  return `<div class="popup-header"><div class="popup-name">${c.name}</div><div class="popup-addr">${c.address || c.submarket || ''}</div><div class="popup-meta-header"><strong>Year Built:</strong> ${yr} &nbsp;·&nbsp; <strong>${units}</strong>${avgPart}</div></div><div class="popup-body"><div class="popup-grid">${stats}</div>${meta}${notes}</div>`;
 }
 
 function renderMarkers() {
