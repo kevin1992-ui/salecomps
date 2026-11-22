@@ -211,6 +211,7 @@
   .ci-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
   .ci-ppu { font-size: 12px; font-weight: 600; color: var(--gold-ink); white-space: nowrap; }
   .ci-meta { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
+  .ci-cap { font-size: 11.5px; font-weight: 500; color: var(--text2); white-space: nowrap; margin-top: 3px; }
   .stat-label { text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text2); }
   .stat-val { font-size: 17px; letter-spacing: -0.2px; }
 
@@ -273,6 +274,7 @@
   .ci-sub { color: var(--dk-text2); }
   .ci-ppu { color: var(--gold); }
   .ci-meta { color: var(--dk-text3); }
+  .ci-cap { color: var(--dk-text2); }
   .comp-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
   .empty-state { color: var(--dk-text3); }
   .actions-wrap { border-top: 1px solid var(--dk-line); }
@@ -733,11 +735,13 @@ function renderList() {
   if (visibleComps.length === 0) { list.innerHTML = '<div class="empty-state">No comps in this view.<br><span style="color:var(--text2);">Try zooming out or clearing filters.</span></div>'; return; }
   list.innerHTML = visibleComps.map(c => {
     const sub = [c.submarket, c.date ? fmtDate(c.date) : ''].filter(Boolean).join(' · ');
-    const meta = [c.units != null ? c.units + ' units' : '', c.yearBuiltRaw ? 'Built ' + c.yearBuiltRaw : '', c.cap != null ? fmtCap(c.cap) + ' cap' : ''].filter(Boolean).join(' · ');
+    const avg = c.avgSF != null ? c.avgSF : (c.sf != null && c.units ? c.sf / c.units : null);
+    const meta = [c.yearBuiltRaw ? 'Built ' + c.yearBuiltRaw : '', c.units != null ? c.units + ' units' : '', avg != null ? Math.round(avg).toLocaleString() + ' SF avg' : ''].filter(Boolean).join(' · ');
+    const cap = c.cap != null ? `<div class="ci-cap">${fmtCap(c.cap)} cap</div>` : '';
     return `<div class="comp-item ${selectedId === c.id ? 'active' : ''}" onclick="selectComp(${c.id}, true)">
       <div class="ci-row"><div class="ci-name">${c.name}</div><div class="ci-price">${fmtPrice(c.price)}</div></div>
       <div class="ci-row"><div class="ci-sub">${sub}</div>${c.ppu != null ? `<div class="ci-ppu">${fmtPPU(c.ppu)}/unit</div>` : ''}</div>
-      ${meta ? `<div class="ci-meta">${meta}</div>` : ''}
+      ${meta || cap ? `<div class="ci-row"><div class="ci-meta">${meta}</div>${cap}</div>` : ''}
     </div>`;
   }).join('');
 }
